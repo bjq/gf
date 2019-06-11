@@ -1,8 +1,8 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 // 静态文件搜索优先级: ServerPaths > ServerRoot > SearchPath
 
@@ -10,10 +10,10 @@ package ghttp
 
 import (
     "fmt"
-    "gitee.com/johng/gf/g/container/garray"
-    "gitee.com/johng/gf/g/os/gfile"
-    "gitee.com/johng/gf/g/os/glog"
-    "gitee.com/johng/gf/g/util/gconv"
+    "github.com/gogf/gf/g/container/garray"
+    "github.com/gogf/gf/g/os/gfile"
+    "github.com/gogf/gf/g/os/glog"
+    "github.com/gogf/gf/g/util/gconv"
     "strings"
 )
 
@@ -57,14 +57,13 @@ func (s *Server)SetServerRoot(root string) {
         return
     }
     // RealPath的作用除了校验地址正确性以外，还转换分隔符号为当前系统正确的文件分隔符号
-    path := gfile.RealPath(root)
-    if path == "" {
-        path = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + root)
+    realPath, err := gfile.Search(root)
+    if err != nil {
+        glog.Fatal(fmt.Sprintf(`[ghttp] SetServerRoot failed: %s`, err.Error()))
     }
-    if path == "" {
-        glog.Fatal(fmt.Sprintf(`[ghttp] SetServerRoot failed: path "%s" does not exist`, root))
-    }
-    s.config.SearchPaths = []string{strings.TrimRight(path, gfile.Separator)}
+    glog.Debug("[ghttp] SetServerRoot path:", realPath)
+    s.config.SearchPaths       = []string{strings.TrimRight(realPath, gfile.Separator)}
+    s.config.FileServerEnabled = true
 }
 
 // 添加静态文件搜索**目录**，必须给定目录的绝对路径
@@ -73,15 +72,12 @@ func (s *Server) AddSearchPath(path string) {
         glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
         return
     }
-    // RealPath的作用除了校验地址正确性以外，还转换分隔符号为当前系统正确的文件分隔符号
-    realPath := gfile.RealPath(path)
-    if realPath == "" {
-        realPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + path)
+    realPath, err := gfile.Search(path)
+    if err != nil {
+        glog.Fatal(fmt.Sprintf(`[ghttp] AddSearchPath failed: %s`, err.Error()))
     }
-    if realPath == "" {
-        glog.Fatal(fmt.Sprintf(`[ghttp] AddSearchPath failed: path "%s" does not exist`, path))
-    }
-    s.config.SearchPaths = append(s.config.SearchPaths, realPath)
+    s.config.SearchPaths       = append(s.config.SearchPaths, realPath)
+    s.config.FileServerEnabled = true
 }
 
 // 添加URI与静态**目录**的映射
@@ -90,13 +86,9 @@ func (s *Server) AddStaticPath(prefix string, path string) {
         glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
         return
     }
-    // RealPath的作用除了校验地址正确性以外，还转换分隔符号为当前系统正确的文件分隔符号
-    realPath := gfile.RealPath(path)
-    if realPath == "" {
-        realPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + path)
-    }
-    if realPath == "" {
-        glog.Fatal(fmt.Sprintf(`[ghttp] AddStaticPath failed: path "%s" does not exist`, path))
+    realPath, err := gfile.Search(path)
+    if err != nil {
+        glog.Fatal(fmt.Sprintf(`[ghttp] AddStaticPath failed: %s`, err.Error()))
     }
     addItem := staticPathItem {
         prefix : prefix,
@@ -106,7 +98,7 @@ func (s *Server) AddStaticPath(prefix string, path string) {
         // 先添加item
         s.config.StaticPaths = append(s.config.StaticPaths, addItem)
         // 按照prefix从长到短进行排序
-        array := garray.NewSortedArray(0, func(v1, v2 interface{}) int {
+        array := garray.NewSortedArray(func(v1, v2 interface{}) int {
             s1 := gconv.String(v1)
             s2 := gconv.String(v2)
             r  := len(s2) - len(s1)
@@ -132,5 +124,6 @@ func (s *Server) AddStaticPath(prefix string, path string) {
     } else {
         s.config.StaticPaths = []staticPathItem { addItem }
     }
+    s.config.FileServerEnabled = true
 }
 

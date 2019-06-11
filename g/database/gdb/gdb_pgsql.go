@@ -1,8 +1,8 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 
 package gdb
@@ -15,7 +15,7 @@ import (
 
 // PostgreSQL的适配.
 // 使用时需要import:
-// _ "gitee.com/johng/gf/third/github.com/lib/pq"
+// _ "github.com/gogf/gf/third/github.com/lib/pq"
 // @todo 需要完善replace和save的操作覆盖
 
 // 数据库链接对象
@@ -26,8 +26,8 @@ type dbPgsql struct {
 // 创建SQL操作对象，内部采用了lazy link处理
 func (db *dbPgsql) Open (config *ConfigNode) (*sql.DB, error) {
     var source string
-    if config.Linkinfo != "" {
-        source = config.Linkinfo
+    if config.LinkInfo != "" {
+        source = config.LinkInfo
     } else {
         source = fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s", config.User, config.Pass, config.Host, config.Port, config.Name)
     }

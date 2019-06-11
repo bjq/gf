@@ -1,16 +1,15 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 时间管理
+// Package gtime provides functionality for measuring and displaying time.
 package gtime
 
 import (
     "errors"
-    "gitee.com/johng/gf/g/util/gregex"
-    "gitee.com/johng/gf/g/util/gstr"
+    "github.com/gogf/gf/g/text/gregex"
     "regexp"
     "strconv"
     "strings"
@@ -18,6 +17,15 @@ import (
 )
 
 const (
+    // 时间间隔缩写
+    D  = 24*time.Hour
+    H  = time.Hour
+    M  = time.Minute
+    S  = time.Second
+    MS = time.Millisecond
+    US = time.Microsecond
+    NS = time.Nanosecond
+
     // 常用时间格式正则匹配，支持的标准时间格式：
     // "2017-12-14 04:51:34 +0805 LMT",
     // "2017-12-14 04:51:34 +0805 LMT",
@@ -73,27 +81,6 @@ var (
     }
 )
 
-// 类似与js中的SetTimeout，一段时间后执行回调函数
-func SetTimeout(t time.Duration, callback func()) {
-    go func() {
-        time.Sleep(t)
-        callback()
-    }()
-}
-
-// 类似与js中的SetInterval，每隔一段时间后执行回调函数，当回调函数返回true，那么继续执行，否则终止执行，该方法是异步的
-// 注意：由于采用的是循环而不是递归操作，因此间隔时间将会以上一次回调函数执行完成的时间来计算
-func SetInterval(t time.Duration, callback func() bool) {
-    go func() {
-        for {
-            time.Sleep(t)
-            if !callback() {
-                break
-            }
-        }
-    }()
-}
-
 // 设置当前进程全局的默认时区，如: Asia/Shanghai
 func SetTimeZone(zone string) error {
     location, err := time.LoadLocation(zone)
@@ -120,7 +107,7 @@ func Millisecond() int64 {
 
 // 获取当前的秒数(时间戳)
 func Second() int64 {
-    return time.Now().UnixNano()/1e9
+    return time.Now().Unix()
 }
 
 // 获得当前的日期(例如：2006-01-02)
@@ -147,7 +134,7 @@ func parseDateStr(s string) (year, month, day int) {
         return
     }
     // 判断年份在开头还是末尾
-    if gstr.IsNumeric(array[1]) {
+    if isNumeric(array[1]) {
         year, _  = strconv.Atoi(array[0])
         month, _ = strconv.Atoi(array[1])
         day, _   = strconv.Atoi(array[2])
@@ -158,11 +145,7 @@ func parseDateStr(s string) (year, month, day int) {
             return
         }
         year, _  = strconv.Atoi(array[2])
-        day, _   = strconv.Atoi(array[1])
-    }
-    // 年是否为缩写，如果是，那么需要补上前缀
-    if year < 100 {
-        year = int(time.Now().Year()/100)*100 + year
+        day, _   = strconv.Atoi(array[0])
     }
     return
 }
@@ -317,4 +300,18 @@ func FuncCost(f func()) int64 {
     t := Nanosecond()
     f()
     return Nanosecond() - t
+}
+
+// 判断所给字符串是否为数字
+func isNumeric(s string) bool {
+    length := len(s)
+    if length == 0 {
+        return false
+    }
+    for i := 0; i < len(s); i++ {
+        if s[i] < byte('0') || s[i] > byte('9') {
+            return false
+        }
+    }
+    return true
 }

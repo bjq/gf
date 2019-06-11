@@ -1,8 +1,8 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // pprof封装.
 
 package ghttp
@@ -11,7 +11,7 @@ import (
     "strings"
     runpprof "runtime/pprof"
     netpprof "net/http/pprof"
-    "gitee.com/johng/gf/g/os/gview"
+    "github.com/gogf/gf/g/os/gview"
 )
 
 // 用于pprof的对象
@@ -52,19 +52,19 @@ func (p *utilPprof) Index(r *Request) {
 }
 
 func (p *utilPprof) Cmdline(r *Request) {
-    netpprof.Cmdline(r.Response.Writer, &r.Request)
+    netpprof.Cmdline(r.Response.Writer, r.Request)
 }
 
 func (p *utilPprof) Profile(r *Request) {
-    netpprof.Profile(r.Response.Writer, &r.Request)
+    netpprof.Profile(r.Response.Writer, r.Request)
 }
 
 func (p *utilPprof) Symbol(r *Request) {
-    netpprof.Symbol(r.Response.Writer, &r.Request)
+    netpprof.Symbol(r.Response.Writer, r.Request)
 }
 
 func (p *utilPprof) Trace(r *Request) {
-    netpprof.Trace(r.Response.Writer, &r.Request)
+    netpprof.Trace(r.Response.Writer, r.Request)
 }
 
 // 开启pprof支持

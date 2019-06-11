@@ -1,8 +1,8 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // @author wxkj<wxscz@qq.com>
 
 package gdb
@@ -12,7 +12,7 @@ import (
 )
 
 // 使用时需要import:
-// _ "gitee.com/johng/gf/third/github.com/mattn/go-sqlite3"
+// _ "github.com/gogf/gf/third/github.com/mattn/go-sqlite3"
 
 // Sqlite接口对象
 // @author wxkj<wxscz@qq.com>
@@ -24,8 +24,8 @@ type dbSqlite struct {
 
 func (db *dbSqlite) Open(config *ConfigNode) (*sql.DB, error) {
 	var source string
-	if config.Linkinfo != "" {
-		source = config.Linkinfo
+	if config.LinkInfo != "" {
+		source = config.LinkInfo
 	} else {
 		source = config.Name
 	}

@@ -1,8 +1,8 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // "不要通过共享内存来通信，而应该通过通信来共享内存"
 
 
@@ -10,16 +10,16 @@ package gproc
 
 import (
     "os"
-    "gitee.com/johng/gf/g/os/gfile"
-    "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/g/container/gmap"
+    "github.com/gogf/gf/g/os/gfile"
+    "github.com/gogf/gf/g/util/gconv"
+    "github.com/gogf/gf/g/container/gmap"
 )
 
 // 本地进程通信接收消息队列(按照分组进行构建的map，键值为*gqueue.Queue对象)
-var commReceiveQueues = gmap.NewStringInterfaceMap()
+var commReceiveQueues = gmap.NewStrAnyMap()
 
 // (用于发送)已建立的PID对应的Conn通信对象，键值为一个Pool，防止并行使用同一个通信对象造成数据重叠
-var commPidConnMap    = gmap.NewIntInterfaceMap()
+var commPidConnMap    = gmap.NewIntAnyMap()
 
 // TCP通信数据结构定义
 type Msg struct {

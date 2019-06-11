@@ -1,32 +1,40 @@
 package main
 
 import (
-    "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/g"
-    "fmt"
+	"fmt"
+	"github.com/gogf/gf/g"
+	"github.com/gogf/gf/g/util/gconv"
 )
 
 func main() {
-    type Score struct {
-        Name   string
-        Result int
-    }
-    type User struct {
-        Scores Score
-    }
+	type Score struct {
+		Name   string
+		Result int
+	}
+	type User1 struct {
+		Scores Score
+	}
+	type User2 struct {
+		Scores *Score
+	}
 
-    user   := new(User)
-    scores := map[string]interface{}{
-        "Scores" : map[string]interface{}{
-            "Name"   : "john",
-            "Result" : 100,
-        },
-    }
+	user1 := new(User1)
+	user2 := new(User2)
+	scores := map[string]interface{}{
+		"Scores": map[string]interface{}{
+			"Name":   "john",
+			"Result": 100,
+		},
+	}
 
-    // 嵌套struct转换
-    if err := gconv.Struct(scores, user); err != nil {
-        fmt.Println(err)
-    } else {
-        g.Dump(user)
-    }
+	if err := gconv.Struct(scores, user1); err != nil {
+		fmt.Println(err)
+	} else {
+		g.Dump(user1)
+	}
+	if err := gconv.Struct(scores, user2); err != nil {
+		fmt.Println(err)
+	} else {
+		g.Dump(user2)
+	}
 }

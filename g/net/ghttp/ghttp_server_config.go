@@ -1,15 +1,16 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package ghttp
 
 import (
+    "crypto/tls"
     "fmt"
-    "gitee.com/johng/gf/g/os/gfile"
-    "gitee.com/johng/gf/g/os/glog"
+    "github.com/gogf/gf/g/os/gfile"
+    "github.com/gogf/gf/g/os/glog"
     "net/http"
     "strconv"
     "time"
@@ -24,7 +25,7 @@ const (
     NAME_TO_URI_TYPE_CAMEL             = 3                // 采用驼峰命名方式
     gDEFAULT_COOKIE_PATH               = "/"              // 默认path
     gDEFAULT_COOKIE_MAX_AGE            = 86400*365        // 默认cookie有效期(一年)
-    gDEFAULT_SESSION_MAX_AGE           = 600              // 默认session有效期(600秒)
+    gDEFAULT_SESSION_MAX_AGE           = 600000           // 默认session有效期(600秒)
     gDEFAULT_SESSION_ID_NAME           = "gfsessionid"    // 默认存放Cookie中的SessionId名称
     gCHANGE_CONFIG_WHILE_RUNNING_ERROR = "cannot be changed while running"
 )
@@ -44,6 +45,8 @@ type ServerConfig struct {
     WriteTimeout      time.Duration         // 写入超时
     IdleTimeout       time.Duration         // 等待超时
     MaxHeaderBytes    int                   // 最大的header长度
+    TLSConfig         tls.Config
+    KeepAlive         bool
 
     // 静态文件配置
     IndexFiles        []string              // 默认访问的文件列表
@@ -52,7 +55,7 @@ type ServerConfig struct {
     ServerRoot        string                // 服务器服务的本地目录根路径(检索优先级比StaticPaths低)
     SearchPaths       []string              // 静态文件搜索目录(包含ServerRoot，按照优先级进行排序)
     StaticPaths       []staticPathItem      // 静态文件目录映射(按照优先级进行排序)
-    FileServerEnabled bool                  // 是否允许静态文件服务(总开关，默认开启)
+    FileServerEnabled bool                  // 是否允许静态文件服务(通过静态文件服务方法调用自动识别)
 
     // COOKIE
     CookieMaxAge      int                   // Cookie有效期
@@ -72,10 +75,11 @@ type ServerConfig struct {
     Rewrites          map[string]string     // URI Rewrite重写配置
 
     // 日志配置
-    LogPath           string                // 存放日志的目录路径
-    LogHandler        LogHandler            // 自定义日志处理回调方法
-    ErrorLogEnabled   bool                  // 是否开启error log
-    AccessLogEnabled  bool                  // 是否开启access log
+    LogPath           string                // 存放日志的目录路径(默认为空，表示不写文件)
+    LogHandler        LogHandler            // 自定义日志处理回调方法(默认为空)
+    LogStdout         bool                  // 是否打印日志到终端(默认开启)
+    ErrorLogEnabled   bool                  // 是否开启error log(默认开启)
+    AccessLogEnabled  bool                  // 是否开启access log(默认关闭)
 
     // 其他设置
     NameToUriType     int                   // 服务注册时对象和方法名称转换为URI时的规则
@@ -93,13 +97,14 @@ var defaultServerConfig = ServerConfig {
     WriteTimeout      : 60 * time.Second,
     IdleTimeout       : 60 * time.Second,
     MaxHeaderBytes    : 1024,
+    KeepAlive         : true,
 
     IndexFiles        : []string{"index.html", "index.htm"},
     IndexFolder       : false,
     ServerAgent       : "gf",
     ServerRoot        : "",
     StaticPaths       : make([]staticPathItem, 0),
-    FileServerEnabled : true,
+    FileServerEnabled : false,
 
     CookieMaxAge      : gDEFAULT_COOKIE_MAX_AGE,
     CookiePath        : gDEFAULT_COOKIE_PATH,
@@ -108,12 +113,11 @@ var defaultServerConfig = ServerConfig {
     SessionMaxAge     : gDEFAULT_SESSION_MAX_AGE,
     SessionIdName     : gDEFAULT_SESSION_ID_NAME,
 
+    LogStdout       : true,
     ErrorLogEnabled   : true,
-
+    AccessLogEnabled  : false,
     GzipContentTypes  : defaultGzipContentTypes,
-
     DumpRouteMap      : true,
-
     RouterCacheExpire : 60,
     Rewrites          : make(map[string]string),
 }
@@ -191,28 +195,46 @@ func (s *Server)SetHTTPSPort(port...int) {
     }
 }
 
-// 开启HTTPS支持，但是必须提供Cert和Key文件
-func (s *Server)EnableHTTPS(certFile, keyFile string) {
+// 开启HTTPS支持，但是必须提供Cert和Key文件，tlsConfig为可选项
+func (s *Server)EnableHTTPS(certFile, keyFile string, tlsConfig...tls.Config) {
     if s.Status() == SERVER_STATUS_RUNNING {
         glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
         return
     }
     certFileRealPath := gfile.RealPath(certFile)
     if certFileRealPath == "" {
-        certFileRealPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + certFileRealPath)
+        certFileRealPath = gfile.RealPath(gfile.Pwd() + gfile.Separator + certFile)
+        if certFileRealPath == "" {
+            certFileRealPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + certFile)
+        }
     }
     if certFileRealPath == "" {
         glog.Fatal(fmt.Sprintf(`[ghttp] EnableHTTPS failed: certFile "%s" does not exist`, certFile))
     }
     keyFileRealPath := gfile.RealPath(keyFile)
     if keyFileRealPath == "" {
-        keyFileRealPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + keyFileRealPath)
+        keyFileRealPath = gfile.RealPath(gfile.Pwd() + gfile.Separator + keyFile)
+        if keyFileRealPath == "" {
+            keyFileRealPath = gfile.RealPath(gfile.MainPkgPath() + gfile.Separator + keyFile)
+        }
     }
     if keyFileRealPath == "" {
         glog.Fatal(fmt.Sprintf(`[ghttp] EnableHTTPS failed: keyFile "%s" does not exist`, keyFile))
     }
     s.config.HTTPSCertPath = certFileRealPath
     s.config.HTTPSKeyPath  = keyFileRealPath
+    if len(tlsConfig) > 0 {
+        s.config.TLSConfig = tlsConfig[0]
+    }
+}
+
+// 设置TLS配置对象
+func (s *Server)SetTLSConfig(tlsConfig tls.Config)  {
+    if s.Status() == SERVER_STATUS_RUNNING {
+        glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
+        return
+    }
+    s.config.TLSConfig = tlsConfig
 }
 
 // 设置http server参数 - ReadTimeout
@@ -294,6 +316,15 @@ func (s *Server) SetRouterCacheExpire(expire int) {
         return
     }
     s.config.RouterCacheExpire = expire
+}
+
+// 设置KeepAlive
+func (s *Server) SetKeepAlive(enabled bool) {
+    if s.Status() == SERVER_STATUS_RUNNING {
+        glog.Error(gCHANGE_CONFIG_WHILE_RUNNING_ERROR)
+        return
+    }
+    s.config.KeepAlive = enabled
 }
 
 // 获取WebServer名称

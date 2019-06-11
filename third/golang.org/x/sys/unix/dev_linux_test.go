@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gitee.com/johng/gf/third/golang.org/x/sys/unix"
+	"github.com/gogf/gf/third/golang.org/x/sys/unix"
 )
 
 func TestDevices(t *testing.T) {
@@ -33,6 +33,9 @@ func TestDevices(t *testing.T) {
 			var stat unix.Stat_t
 			err := unix.Stat(tc.path, &stat)
 			if err != nil {
+				if err == unix.EACCES {
+					t.Skip("no permission to stat device, skipping test")
+				}
 				t.Errorf("failed to stat device: %v", err)
 				return
 			}

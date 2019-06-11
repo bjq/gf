@@ -7,15 +7,18 @@
 package svc_test
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
-	"gitee.com/johng/gf/third/golang.org/x/sys/windows/svc"
-	"gitee.com/johng/gf/third/golang.org/x/sys/windows/svc/mgr"
+	"github.com/gogf/gf/third/golang.org/x/sys/windows/svc"
+	"github.com/gogf/gf/third/golang.org/x/sys/windows/svc/mgr"
 )
 
 func getState(t *testing.T, s *mgr.Service) svc.State {
@@ -66,7 +69,7 @@ func TestExample(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	exepath := filepath.Join(dir, "a.exe")
-	o, err := exec.Command("go", "build", "-o", exepath, "gitee.com/johng/gf/third/golang.org/x/sys/windows/svc/example").CombinedOutput()
+	o, err := exec.Command("go", "build", "-o", exepath, "github.com/gogf/gf/third/golang.org/x/sys/windows/svc/example").CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to build service program: %v\n%v", err, string(o))
 	}
@@ -86,8 +89,10 @@ func TestExample(t *testing.T) {
 	}
 	defer s.Close()
 
+	args := []string{"is", "manual-started", fmt.Sprintf("%d", rand.Int())}
+
 	testState(t, s, svc.Stopped)
-	err = s.Start("is", "manual-started")
+	err = s.Start(args...)
 	if err != nil {
 		t.Fatalf("Start(%s) failed: %s", s.Name, err)
 	}
@@ -114,5 +119,13 @@ func TestExample(t *testing.T) {
 	err = s.Delete()
 	if err != nil {
 		t.Fatalf("Delete failed: %s", err)
+	}
+
+	out, err := exec.Command("wevtutil.exe", "qe", "Application", "/q:*[System[Provider[@Name='myservice']]]", "/rd:true", "/c:10").CombinedOutput()
+	if err != nil {
+		t.Fatalf("wevtutil failed: %v\n%v", err, string(out))
+	}
+	if want := strings.Join(append([]string{name}, args...), "-"); !strings.Contains(string(out), want) {
+		t.Errorf("%q string does not contain %q", string(out), want)
 	}
 }

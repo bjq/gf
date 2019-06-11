@@ -1,49 +1,52 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package g
 
 import (
-    "gitee.com/johng/gf/g/net/ghttp"
-    "gitee.com/johng/gf/g/util/gutil"
-    "gitee.com/johng/gf/g/os/glog"
-    "gitee.com/johng/gf/g/container/gvar"
+    "github.com/gogf/gf/g/container/gvar"
+    "github.com/gogf/gf/g/internal/empty"
+    "github.com/gogf/gf/g/net/ghttp"
+    "github.com/gogf/gf/g/util/gutil"
 )
 
-const (
-    LOG_LEVEL_ALL  = glog.LEVEL_ALL
-    LOG_LEVEL_DEBU = glog.LEVEL_DEBU
-    LOG_LEVEL_INFO = glog.LEVEL_INFO
-    LOG_LEVEL_NOTI = glog.LEVEL_NOTI
-    LOG_LEVEL_WARN = glog.LEVEL_WARN
-    LOG_LEVEL_ERRO = glog.LEVEL_ERRO
-    LOG_LEVEL_CRIT = glog.LEVEL_CRIT
-)
-
-// 动态变量
-func NewVar(i interface{}, safe...bool) *Var {
-    return gvar.New(i, safe...)
+// NewVar returns a *gvar.Var.
+func NewVar(i interface{}, unsafe...bool) *Var {
+    return gvar.New(i, unsafe...)
 }
 
-// 阻塞等待HTTPServer执行完成(同一进程多HTTPServer情况下)
+// Wait blocks until all the web servers shutdown.
 func Wait() {
     ghttp.Wait()
 }
 
-// 打印变量
+// Dump dumps a variable to stdout with more manually readable.
 func Dump(i...interface{}) {
     gutil.Dump(i...)
 }
 
-// 抛出一个异常
+// Export exports a variable to string with more manually readable.
+func Export(i...interface{}) string {
+    return gutil.Export(i...)
+}
+
+// Throw throws a exception, which can be caught by TryCatch function.
+// It always be used in TryCatch function.
 func Throw(exception interface{}) {
     gutil.Throw(exception)
 }
 
-// try...catch...
+// TryCatch does the try...catch... logic.
 func TryCatch(try func(), catch ... func(exception interface{})) {
     gutil.TryCatch(try, catch...)
+}
+
+// IsEmpty checks given value empty or not.
+// It returns false if value is: integer(0), bool(false), slice/map(len=0), nil;
+// or else true.
+func IsEmpty(value interface{}) bool {
+    return empty.IsEmpty(value)
 }

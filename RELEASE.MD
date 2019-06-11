@@ -1,19 +1,229 @@
+# `v1.7.0`
+## 新功能/改进
+1. 重构改进`glog`模块：
+    - 去掉日志模块所有的锁机制，改为无锁设计，执行性能更加高效
+    - 增加日志内容的异步输出特性：https://goframe.org/os/glog/async
+    - 增加日志输出内容的`Json`格式支持：https://goframe.org/os/glog/json
+    - 增加`Flags`额外特性支持，包括文件行号打印、自定义时间格式、异步输出等特性控制：https://goframe.org/os/glog/flags
+    - 增加`Writer`接口支持，便于开发者进行自定义的日志功能扩展，或者与第三方服务/模块对接集成：https://goframe.org/os/glog/writer
+    - 修改`SetStdPrint`方法名为`SetStdoutPrint`
+    - 修改链式方法`StdPrint`方法名为`Stdout`
+    - 标记淘汰`*fln`日志输出方法，`*f`方法支持自动的换行输出
+    - 新增更多的链式方法支持：https://goframe.org/os/glog/chain
+1. 重构改进`gmap`模块：
+    - 增加更多数据格式支持：`HashMap`/`ListMap`/`TreeMap`
+    - 简化类型名称，如`gmap.StringInterfaceMap`简化为`gmap.StrAnyMap`
+    - 改进`Map/Keys/Values`方法以提高性能
+    - 修改`BatchSet`/`BatchRemove`方法名为`Sets`/`Removes`
+    - 新增更多功能方法支持：https://goframe.org/container/gmap/index
+1. 改进`gtime`时间模块：
+    - 增加并完善更多的类`PHP`时间格式支持
+    - 新增更多功能方法，如`FormatTo`/`LayoutTo`等等
+    - 详见开发文档：https://goframe.org/os/gtime/index
+1. 改进`gdb`数据库模块：
+    - 增加对继承结构体的数据转换支持：https://goframe.org/database/gdb/senior
+    - 新增`GetLastSql`方法，用以在调试模式下获取最近一条执行的SQL语句
+    - 其他的细节处理改进
+1. 改进`gtcp`通信模块：
+    - 完善处理细节，提高通信性能；
+    - 增加`TLS`服务端/客户端通信支持：https://goframe.org/net/gtcp/tls
+    - 增加简单协议支持，便于开发者封包/解包，并解决粘包/半包问题：https://goframe.org/net/gtcp/conn/pkg
+    - TCP服务端增加`Close`方法
+    - 更多细节查看开发文档：https://goframe.org/net/gtcp/index
+1. 改进`gconv`类型转换模块
+    - 修改`gconv.TimeDuration`转换方法名称为`gconv.Duration`
+    - 新增`gconv.StructDeep`及`gconv.MapDeep`方法，支持递归转换
+    - 详见开发文档：https://goframe.org/util/gconv/struct
+1. 改进`ghttp`模块：
+    - 日志输出增加`http/https`字段：https://goframe.org/net/ghttp/logs
+    - 新增`ghttp.Server.SetKeepAlive`设置方法，用以开启/关闭`KeepAlive`特性
+    - 增加`ghttp.Request.GetUrl`方法，用以获取当前完整的URL请求地址
+    - `ghttp.Client`客户端支持开发者自定义`Transport`属性，`ghttp.Client.Post`方法支持`浏览器模式`：https://goframe.org/net/ghttp/client
+1. 新增`gtree`树形数据结构容器支持：https://goframe.org/container/gtree/index
+1. 改进`gudp`通信模块，具体请参考开发文档：https://goframe.org/net/gudp/index
+1. 改进`gcfg`配置管理模块，所有`Get*`方法增加默认值支持：https://goframe.org/os/gcfg/index
+1. `gredis`模块新增`DoVar`/`ReceiveVar`方法以便于开发者对执行结果进行灵活的数据格式转换：https://goframe.org/database/gredis/index
+1. `gcache`模块`BatchSet`/`BatchRemove`方法名修改为`Sets`/`Removes`
+1. 改进`gjson`/`gparser`模块，增加更多方法：https://goframe.org/encoding/gjson/index
+1. 改进`gfile.MainPkgPath`方法，以支持不同平台的开发环境；
+1. 改进`grpool`协程池模块，提高执行性能：https://goframe.org/os/grpool/index
+1. 改进`TryCatch`方法，当开发者不传递`Catch`参数时，默认抑制并忽略错误的处理
+1. 改进`gmlock`模块，增加`TryLockFunc`/`TryRLockFunc`方法，并且为`gmlock.Mutex`高级互斥锁对象增加`TryLockFunc`/`TryRLockFunc`方法
+1. 去除`gvar.VarRead`接口类型支持
+
+## Bug Fix
+1. 解决`gdb`模块与其他第三方`ORM`模块同时使用的冲突；
+1. 修复`gcron.AddOnce`方法的细节逻辑问题；
+1. 修复内部`empty`模块的`IsEmpty`方法对结构体属性的空校验错误；
+1. 修复`gview`模板引擎的并发安全问题；
+1. 修复`ghttp.Server`的SESSION初始化过期时间问题；
+
+# `v1.6.0` (2019-04-09)
+
+## 新功能/改进
+1. `gcron`定时任务模块增加运行日志记录功能：https://goframe.org/os/gcron/index
+1. `gredis`增加全局分组配置功能，并增加更多的配置选项`maxIdle/maxActive/idleTimeout/maxConnLifetime`：https://goframe.org/database/gredis/index
+1. `gcfg`模块增加更多的默认配置文件检索路径，并且增加全局分组配置特性，增加`Instance`单例方法：https://goframe.org/os/gcfg/index
+1. `gview`模块增加更多的默认配置文件检索路径，并且增加`Instance`单例方法：https://goframe.org/os/gview/index
+1. `ghttp`模块新功能及改进：
+    - 新增`CORS`HTTP(S)跨域请求特性: https://goframe.org/net/ghttp/cors
+    - 增加`TLSConfig`配置功能；
+    - 去掉路由注册方法的`error`返回值，当产生注册错误时直接终端打印错误/输出到日志文件；
+    - 增加在`HTTP Code 302`跳转时的`Set-Cookie`支持；
+    - 增加对`SESSION ID`的安全性检查；
+    - 增加对基于`HTTPS`的`WebSocket`支持（`WSS`）：https://goframe.org/net/ghttp/websocket/index
+    - `Request`对象增加`Error`方法，用于输出自定义错误信息到`WebServer`错误日志中；
+    - 其他一些改进；
+1. `gdb`模块新功能及改进：
+    - 新增`Instance`单例管理方法；
+    - 新增`Structs/Scan`链式操作方法，`gdb.DB/TX`新增`GetStructs/GetScan`方法，用于结果集`struct`/`slice`映射转换：https://goframe.org/database/gdb/chaining
+    - 新增`Safe`链式操作方法（默认非并发安全），用于链式安全控制：https://goframe.org/database/gdb/chaining
+    - `Where`链式操作方法改进：
+        - 方法支持任意的`string/map/slice/struct/*struct`类型；
+        - 逻辑调整，当链式操作中存在多个`Where`方法调用时，自动转换为`And`条件；
+        - 支持`slice`条件参数，常用在`SELECT IN`查询中，例如：`Where("uid IN(?)", g.Slice{1,2,3})`；
+        - 支持在`map`类型条件参数的`key`中传递条件，例如：`Where(g.Map{"uid>?", uid})`；
+1. `gconv`及`gvalid`模块改进并去掉对私有`struct`方法属性的转换/校验；
+1. `gconv.Map`转换方法新增对`json tag`: `-`, `omitempty`的支持: https://goframe.org/util/gconv/map
+1. `gstr`模块新增 `ReplaceI/ReplaceIByArray/ReplaceIByMap`大小写非敏感替换方法；
+1. `gutil`模块增加`IsEmpty`方法，用于判断给定变量是否为空（整型0, 布尔false, slice/map长度为0, 其他为nil的情况，判断为空），并增加快捷方法`g.IsEmpty`；
+1. `gutil`模块增加`Export`方法，用于导出返回格式化打印的变量内容字符串，并增加快捷方法`g.Export`；
+1. `gspath`增加缓存及非缓存检索检索方法`Search`/`SearchWithCache`；
+1. `gjson`模块增加默认的`UseNumber`功能支持；
+1. `gmap`增加`SetIfNotExistFunc/SetIfNotExistFuncLock`方法；
+1. 迁移`greuseport`模块到新的仓库：https://github.com/gogf/greuseport
+1. 大量的单元测试完善；
+
+## Bug Fix
+1. 修复`gqueue`模块的资源竞争问题；
+1. 修复`gconv.GTime`转换失败问题；
+1. 修复`gconv.String`在转换`int`参数时字节溢出问题；
+1. 修复`ghttp.Request`的`HTTP Basic Auth`校验问题；
+1. 修复`gxml`针对于非`UTF-8`编码内容转换的并发安全问题；
+1. 修复`gtime`部分`Format`（`G`&`j`）格式失效问题；
+1. 修复`gudp.Conn`对象的`RemoteAddr`获取客户端连接地址方法问题；
+1. 修复`gmap/gcache`模块的`GetOrSetFuncLock`方法，增加对回调方法返回值的`nil`判断，只有非nil返回值才会被保存；
+
+
+
+# `v1.5.8` (2019-02-28)
+
+## 新特性
+1. 主库从`gitee`迁移到了`github`( https://github.com/gogf/gf )，`gitee`作为镜像站，用于国内的代码贡献及ISSUE提交，迁移说明详见：https://goframe.org/upgradeto150
+1. 对常用的`container`数组模块: `garray`做了大量改进/完善工作，新增大量常用方法，并完善单元测试用例及方法注释，详见API文档：https://godoc.org/github.com/gogf/gf/g/container/garray
+1. 对常用的`container`集合模块: `gset`做了大量改进/完善工作，新增大量常用方法，并完善单元测试用例及方法注释，详见API文档：https://godoc.org/github.com/gogf/gf/g/container/gset
+1. 对常用的`container`MAP模块: `gmap`做了大量改进/完善工作，新增大量常用方法，并完善单元测试用例及方法注释，详见API文档：https://godoc.org/github.com/gogf/gf/g/container/gmap
+1. 对常用的字符串模块: `gstr`做了大量改进/完善工作，新增大量常用方法，并完善单元测试用例及方法注释，详见API文档：https://godoc.org/github.com/gogf/gf/g/text/gstr
+1. 改进`gform`中对`struct`/`*struct`参数的支持，`*Insert/*Save/*Replace/*Update/Where/Data`方法的参数调整为`interface{}`类型，并支持任意类型的: `string/map/slice/struct/*struct`参数传递，具体请参考：https://goframe.org/database/orm/chaining
+1. 新增/完善若干模块的单元测试用例, 包括：`gvalid`/`gregex`/`garray`/`gset`/`gmap`/`gstr`/`gconv`/`ghttp`/`gdb`；
+1. 由于`gkafka`模块比较重，且不是框架核心模块，因此将该模块迁移到新的仓库中独立管理，并去掉相关依赖包：https://github.com/gogf/gkafka
+1. 新增`greuseport`模块，用以实现TCP的`REUSEPORT`特性：https://godoc.org/github.com/gogf/gf/g/net/greuseport
+
+## 新功能/改进
+1. 去掉模板引擎内置变量中自动初始化`session`对象带来的内存占用问题；
+1. `ghttp.Client`改进，增加若干方法，详见：https://goframe.org/net/ghttp/client 
+1. `ghttp`分组路由增加`COMMON`方法，用以注册常用的`HTTP METHOD`(`GET/PUT/POST/DELETE`)路由；
+1. 更新框架依赖的`golang.org/x/sys`模块；
+1. 改进`gform`的批量操作(`Batch*`操作)返回结果对象，可以通过该结果对象获得批量操作准确的受影响记录行数；
+1. 将`gstr`/`gregex`模块从`util`分类迁移到了`text`分类目录下；
+1. 将`gtest`模块从`util`分类迁移到了`test`分类目录下；
+1. 完善`glog`方法注释；
+
+## Bug Fix
+1. 修复带点的邮件格式,用`gvalid.Check`的"`email`"规则不能匹配成功;
+1. 修复`gvalid.Check`在`regex`规则下的检查失败问题；
+1. 修复`gcron`模块定时规则中天和周不允许`?`符号的问题；
+1. 修复`ghttp.Server`在部分异常情况下仍然返回`200`状态码的问题；
+1. 修复`gfpool`模块中由于原子操作问题造成的高并发"内存泄露"问题；
+1. 修复分组路由注册对象/控制时，方法`Index`的路由仅能通过`/xxx/index`访问的问题；
+1. 修复模板引擎使用中，当不存在`config.toml`(即使没使用)配置文件时的报错问题；
+1. 其他一些修复；
+
+
+
+# `v1.4.6` (2019-01-24)
+
+## 新特性
+1. 新增并发安全的高性能任务定时器模块`gtimer`, 类似于Java的`Timer`，但是比较于Java的`Timer`更加强大，内部实现采用灵活高效的`分层时间轮`设计，被设计为可管理维护百万级别以上数量的定时任务。`gtimer`为`GF`框架的核心模块之一，单元测试覆盖率达到`93.6%`：[https://goframe.org/os/gtimer/index](https://goframe.org/os/gtimer/index)
+1. 采用任务定时器`gtimer`重构`gcron`定时任务模块，去掉第三方`github.com/robfig/cron`包的使用。`gcron`增加单例模式的定时任务：[https://goframe.org/os/gcron/index#](https://goframe.org/os/gcron/index#)；
+1. `gconv`类型转换模块支持对`struct`结构体中的**指针属性**转换：[https://goframe.org/util/gconv/struct](https://goframe.org/util/gconv/struct)；
+1. `gform`增加对数据库类型的自动识别特性，这一特性在需要将查询结果`json`编码返回时非常有用: [https://goframe.org/database/orm/index](https://goframe.org/database/orm/index)
+1. `Travis CI`增加对`386`架构的自动化测试支持(目前已支持`386`和`amd64`)；
+
+## 新功能
+1. `ghttp`模块新增`Exit`、`ExitAll`、`ExitHook`方法，用于HTTP请求处理流程控制: [https://goframe.org/net/ghttp/service/object](https://goframe.org/net/ghttp/service/object)；
+1. `grand`模块增加`Meet/MeetProb`方法，用于给定概率的随机满足判断，增加别名方法`N/Str/Digits/Letters`；
+1. `gvalid`数据/表单校验模块增加`16X`及`19X`手机号的校验支持；
+
+## 功能改进
+1. `gform`设置默认的数据库连接池`CONN_MAX_LIFE`参数值为`30`秒；
+1. 改进`glist`模块，提高约`20%`左右性能，并增加若干链表操作方法；
+1. 改进`gqueue`模块，提高约`50`左右性能，并增加模块对`select`语法的支持(使用`Queue.C`): [https://goframe.org/container/gqueue/index](https://goframe.org/container/gqueue/index)；
+1. 改进`gmlock`内存锁模块，并完善单元测试用例：[https://goframe.org/os/gmlock/index](https://goframe.org/os/gmlock/index)；
+1. 改进并发安全容器所有的模块，调整并发安全控制非必需参数`safe...bool`为`unsafe...bool`；
+1. 改进`gpool`对象复用模块，支持并发安全；
+1. 更新`gkafka`模块的第三方依赖包；
+1. 完善`ghttp`模块的单元测试用例；
+
+
+## Bug Fix
+1. 修复`gmd5`模块操作文件时的文件指针未关闭问题；
+1. 修复`gcache`缓存项过期删除失效问题；
+1. 其他修复；
+
+# `v1.3.8` (2018-12-26)
+
+## 新特性
+1. 对`gform`完成重构，以提高扩展性，并修复部分细节问题、完善单元测试用例([https://goframe.org/database/orm/index](https://goframe.org/database/orm/index))；
+1. `WebServer`路由注册新增分组路由特性([https://goframe.org/net/ghttp/group](https://goframe.org/net/ghttp/group));
+1. `WebServer`新增`Rewrite`路由重写特性([https://goframe.org/net/ghttp/static](https://goframe.org/net/ghttp/static));
+1. 增加框架运行时对开发环境的自动识别；
+1. 增加了`Travis CI`自动化构建/测试；
+
+## 新功能
+1. 改进`WebServer`静态文件服务功能，增加`SetStaticPath`/`AddStaticPath`方法([https://goframe.org/net/ghttp/static](https://goframe.org/net/ghttp/static))；
+1. `gform`新增`Filter`链式操作方法，用于过滤参数中的非表字段键值对（[https://goframe.org/database/orm/linkop](https://goframe.org/database/orm/linkop)）；
+1. `gcache`新增`Data`方法，用以获取所有的缓存数据项；
+1. `gredis`增加`GetConn`方法获取原生redis连接对象；
+
+## 功能改进
+1. 改进`gform`的`Where`方法，支持`slice`类型的参数，并更方便地支持`in`操作查询（[https://goframe.org/database/orm/linkop](https://goframe.org/database/orm/linkop)）；
+1. 改进`gproc`进程间通信数据结构，将`pid`字段从`16bit`扩展为`24bit`；
+1. 改进`gconv`/`gmap`/`garray`，增加若干操作方法；
+1. 改进`gview`模板引擎中的`date`内置函数，当给定的时间戳为空时打印当前的系统时间；
+1. 改进`gview`模板引擎中，当打印的变量不存在时，显示为空（标准库默认显示为`<no value>`）；
+1. 改进`WebServer`，去掉`HANGUP`的信号监听，避免程序通过`nohup`运行时产生异常退出问题；
+1. 改进`gcache`性能，并完善基准测试；
+
+## Bug Fix
+1. 修复`gcache`在非LRU特性开启时的缓存关闭资源竞争问题，并修复`doSetWithLockCheck`内部方法的返回值问题；
+1. 修复`grand.intn`内部方法在`x86`架构下的随机数位溢出问题；
+1. 修复`gbinary`中`Int`方法针对`[]byte`参数长度自动匹配造成的字节长度溢出问题；
+1. 修复`gjson`由于官方标准库`json`不支持`map[interface{}]*`类型造成的Go变量编码问题；
+1. 修复`garray`中部分方法的数据竞争问题，修复二分查找排序问题；
+1. 修复`ghttp.Request.GetVar`方法获取参数问题；
+1. 修复`gform`的数据库连接池不起作用的问题；
+
+
+
+
+
 # `v1.2.11` (2018-11-26)
 ## 新特性
-1. `ORM`新增对`SQLServer`及`Oracle`的支持([https://gfer.me/database/orm/database](https://gfer.me/database/orm/database))；
-1. 完成`gvalid`模块校验结果的顺序特性([https://gfer.me/util/gvalid/checkmap](https://gfer.me/util/gvalid/checkmap));
-1. 改进`ghttp.Request.Exit`，使得调用该方法时立即退出业务执行，开发者无需调用`Exit`方法时再使用`return`返回([https://gfer.me/net/ghttp/service/object](https://gfer.me/net/ghttp/service/object))；
-1. 模板引擎新增若干内置函数:`text/html/htmldecode/url/urldecode/date/compare/substr/strlimit/hidestr/highlight/toupper/tolower/nl2br` ([https://gfer.me/os/gview/funcs](https://gfer.me/os/gview/funcs));
-1. 模板引擎新增内置变量`Config` ([https://gfer.me/os/gview/vars](https://gfer.me/os/gview/vars));
+1. `ORM`新增对`SQLServer`及`Oracle`的支持([https://goframe.org/database/orm/database](https://goframe.org/database/orm/database))；
+1. 完成`gvalid`模块校验结果的顺序特性([https://goframe.org/util/gvalid/checkmap](https://goframe.org/util/gvalid/checkmap));
+1. 改进`ghttp.Request.Exit`，使得调用该方法时立即退出业务执行，开发者无需调用`Exit`方法时再使用`return`返回([https://goframe.org/net/ghttp/service/object](https://goframe.org/net/ghttp/service/object))；
+1. 模板引擎新增若干内置函数:`text/html/htmldecode/url/urldecode/date/compare/substr/strlimit/hidestr/highlight/toupper/tolower/nl2br` ([https://goframe.org/os/gview/funcs](https://goframe.org/os/gview/funcs));
+1. 模板引擎新增内置变量`Config` ([https://goframe.org/os/gview/vars](https://goframe.org/os/gview/vars));
 1. 改进`gconv.Struct`转换默认规则，支持不区分大小写的键名与属性名称匹配；
-1. `gform`配置文件支持`linkinfo`自定义数据库连接字段([https://gfer.me/database/orm/config](https://gfer.me/database/orm/config))；
-1. `gfsnotify`模块增加对特定回调的取消注册功能（[https://gfer.me/os/gfsnotify/index](https://gfer.me/os/gfsnotify/index)）；
+1. `gform`配置文件支持`linkinfo`自定义数据库连接字段([https://goframe.org/database/orm/config](https://goframe.org/database/orm/config))；
+1. `gfsnotify`模块增加对特定回调的取消注册功能（[https://goframe.org/os/gfsnotify/index](https://goframe.org/os/gfsnotify/index)）；
 
 
 
 ## 新功能
-1. 改进`ghttp.Request`，增加`SetParam/GetParam`请求流程自定义变量设置/获取方法，用于在请求流程中的回调函数共享变量（[https://gfer.me/net/ghttp/request](https://gfer.me/net/ghttp/request)）;
-1. 改进`ghttp.Response`，增加`ServeFileDownload`方法，用于WebServer引导客户端下载文件([https://gfer.me/net/ghttp/response](https://gfer.me/net/ghttp/response));
+1. 改进`ghttp.Request`，增加`SetParam/GetParam`请求流程自定义变量设置/获取方法，用于在请求流程中的回调函数共享变量（[https://goframe.org/net/ghttp/request](https://goframe.org/net/ghttp/request)）;
+1. 改进`ghttp.Response`，增加`ServeFileDownload`方法，用于WebServer引导客户端下载文件([https://goframe.org/net/ghttp/response](https://goframe.org/net/ghttp/response));
 1. `gvar`模块新增`gvar.VarRead`只读接口，用于控制对外只暴露数据读取功能；
 1. 增加`g.Throw`抛异常方法，`g.TryCatch`异常捕获方法封装;
 1. 改进`gcron`模块，增加自定义的Cron管理对象，增加`New/Start/Stop`方法;
@@ -21,9 +231,9 @@
 
 ## 功能改进
 1. WebServer添加`RouterCacheExpire`配置参数，用于设置路由检索缓存过期时间；
-1. WebServer允许同一`HOOK`事件被多次绑定注册，先注册的回调函数优先级更高([https://gfer.me/net/ghttp/service/hook](https://gfer.me/net/ghttp/service/hook));
+1. WebServer允许同一`HOOK`事件被多次绑定注册，先注册的回调函数优先级更高([https://goframe.org/net/ghttp/service/hook](https://goframe.org/net/ghttp/service/hook));
 1. 当前工作目录为系统临时目录时，`gcfg`/`gview`/`ghttp`模块默认不添加工作目录到搜索路径;
-1. 改进`WebSocket`默认支持跨域请求([https://gfer.me/net/ghttp/websocket](https://gfer.me/net/ghttp/websocket));
+1. 改进`WebSocket`默认支持跨域请求([https://goframe.org/net/ghttp/websocket](https://goframe.org/net/ghttp/websocket));
 1. 改进`gtime.Format`支持中文;
 1. 改进`gfsnotify`，支持编辑器对文件非执行标准编辑时(RENAME+CHMOD)的热更新问题;
 1. 改进`gtype.Set`方法，增加Set原子操作返回旧的变量值;
@@ -32,12 +242,12 @@
 1. `gstr`模块增加对中文截取方法;
 1. 改进`gtime.StrToTime`对常用时间格式匹配模式，新增`gtime.ParseTimeFromContent`方法;
 1. 修改配置管理、模板引擎、调试模式的环境变量名称为大写下划线标准格式;
-1. 改进`grand`模块随机数生成设计，底层使用`crypto/rand`+缓冲区实现高速的随机数生成([https://gfer.me/util/grand/index](https://gfer.me/util/grand/index));
+1. 改进`grand`模块随机数生成设计，底层使用`crypto/rand`+缓冲区实现高速的随机数生成([https://goframe.org/util/grand/index](https://goframe.org/util/grand/index));
 
 ## 问题修复
 1. 修复`gspath`模块在`windows`下搜索失效问题；
 1. 修复`gspath`模块Search时带有indexFiles的检索问题;
-1. bug fix INZS1([https://gitee.com/johng/gf/issues/INZS1](https://gitee.com/johng/gf/issues/INZS1));
+1. bug fix INZS1([https://github.com/gogf/gf/issues/INZS1](https://github.com/gogf/gf/issues/INZS1));
 1. 修复`gproc.ShellRun`在windows下的执行问题;
 
 
@@ -276,8 +486,8 @@
     12、gdb数据库ORM包增加And/Or条件链式方法，并改进Where/Data方法参数灵活性；
     13、对于新增加的模块，同时也增加了对应的开发文档，并梳理完善了现有的其他模块开发文档；
     14、修复ISSUE:
-        #IISWI gitee.com/johng/gf/issues/IISWI,
-        #IISMY gitee.com/johng/gf/issues/IISMY,
+        #IISWI github.com/gogf/gf/issues/IISWI,
+        #IISMY github.com/gogf/gf/issues/IISMY,
         反馈并跟踪完成第三方依赖mxj包的ISSUE修复(github.com/clbanning/mxj/issues/48)；
 
 

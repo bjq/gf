@@ -1,28 +1,29 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package ghttp
 
 import (
-    "os"
-    "fmt"
-    "net"
     "context"
-    "net/http"
     "crypto/tls"
-    "gitee.com/johng/gf/g/os/glog"
-    "gitee.com/johng/gf/g/os/gproc"
+    "errors"
+    "fmt"
+    "github.com/gogf/gf/g/os/glog"
+    "github.com/gogf/gf/g/os/gproc"
+    "net"
+    "net/http"
+    "os"
     "time"
 )
 
 // 优雅的Web Server对象封装
 type gracefulServer struct {
-    fd           uintptr
-    addr         string
-    httpServer   *http.Server
+    fd           uintptr      // 热重启时传递的socket监听文件句柄
+    addr         string       // 监听地址信息
+    httpServer   *http.Server // 底层http.Server
     rawListener  net.Listener // 原始listener
     listener     net.Listener // 接口化封装的listener
     isHttps      bool         // 是否HTTPS
@@ -44,7 +45,7 @@ func (s *Server) newGracefulServer(addr string, fd...int) *gracefulServer {
 
 // 生成一个底层的Web Server对象
 func (s *Server) newHttpServer(addr string) *http.Server {
-    return &http.Server {
+    server := &http.Server {
         Addr           : addr,
         Handler        : s.config.Handler,
         ReadTimeout    : s.config.ReadTimeout,
@@ -52,6 +53,8 @@ func (s *Server) newHttpServer(addr string) *http.Server {
         IdleTimeout    : s.config.IdleTimeout,
         MaxHeaderBytes : s.config.MaxHeaderBytes,
     }
+    server.SetKeepAlivesEnabled(s.config.KeepAlive)
+    return server
 }
 
 // 执行HTTP监听
@@ -83,20 +86,24 @@ func (s *gracefulServer) setFd(fd int) {
 }
 
 // 执行HTTPS监听
-func (s *gracefulServer) ListenAndServeTLS(certFile, keyFile string) error {
+func (s *gracefulServer) ListenAndServeTLS(certFile, keyFile string, tlsConfig...*tls.Config) error {
     addr   := s.httpServer.Addr
-    config := &tls.Config{}
-    if s.httpServer.TLSConfig != nil {
+    config := (*tls.Config)(nil)
+    if len(tlsConfig) > 0 {
+        config = tlsConfig[0]
+    } else if s.httpServer.TLSConfig != nil {
         *config = *s.httpServer.TLSConfig
     }
     if config.NextProtos == nil {
         config.NextProtos = []string{"http/1.1"}
     }
-    var err error
-    config.Certificates         = make([]tls.Certificate, 1)
-    config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+    err := error(nil)
+    if len(config.Certificates) == 0 {
+        config.Certificates         = make([]tls.Certificate, 1)
+        config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+    }
     if err != nil {
-        return err
+        return errors.New(fmt.Sprintf(`open cert file "%s","%s" failed: %s`, certFile, keyFile, err.Error()))
     }
     ln, err := s.getNetListener(addr)
     if err != nil {
@@ -123,7 +130,7 @@ func (s *gracefulServer) doServe() error {
     if s.fd != 0 {
         action = "reloaded"
     }
-    glog.Printfln("%d: %s server %s listening on [%s]", gproc.Pid(), s.getProto(), action, s.addr)
+    glog.Printf("%d: %s server %s listening on [%s]", gproc.Pid(), s.getProto(), action, s.addr)
     s.status = SERVER_STATUS_RUNNING
     err := s.httpServer.Serve(s.listener)
     s.status = SERVER_STATUS_STOPPED
@@ -166,7 +173,7 @@ func (s *gracefulServer) shutdown() {
         return
     }
     if err := s.httpServer.Shutdown(context.Background()); err != nil {
-        glog.Errorfln("%d: %s server [%s] shutdown error: %v", gproc.Pid(), s.getProto(), s.addr, err)
+        glog.Errorf("%d: %s server [%s] shutdown error: %v", gproc.Pid(), s.getProto(), s.addr, err)
     }
 }
 
@@ -176,7 +183,7 @@ func (s *gracefulServer) close() {
         return
     }
     if err := s.httpServer.Close(); err != nil {
-        glog.Errorfln("%d: %s server [%s] closed error: %v", gproc.Pid(), s.getProto(), s.addr, err)
+        glog.Errorf("%d: %s server [%s] closed error: %v", gproc.Pid(), s.getProto(), s.addr, err)
     }
 }
 

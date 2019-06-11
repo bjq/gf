@@ -1,14 +1,15 @@
-// Copyright 2017-2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package gvalid
 
 import (
-    "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/third/github.com/fatih/structs"
+    "github.com/gogf/gf/g/text/gstr"
+    "github.com/gogf/gf/g/util/gconv"
+    "github.com/gogf/gf/third/github.com/fatih/structs"
     "strings"
 )
 
@@ -59,14 +60,19 @@ func CheckStruct(object interface{}, rules interface{}, msgs...CustomMsg) *Error
         case map[string]string:
             checkRules = v
     }
-    // 首先, 按照属性循环一遍将strcut的属性、数值、tag解析
+    // 首先, 按照属性循环一遍将struct的属性、数值、tag解析
     for _, field := range fields {
-        params[field.Name()] = field.Value()
+        fieldName := field.Name()
+        // 只检测公开属性
+        if !gstr.IsLetterUpper(fieldName[0]) {
+            continue
+        }
+        params[fieldName] = field.Value()
         if tag := field.Tag("gvalid"); tag != "" {
             // sequence tag == struct tag, 这里的name为别名
             name, rule, msg := parseSequenceTag(tag)
             if len(name) == 0 {
-                name = field.Name()
+                name = fieldName
             }
             // params参数使用别名**扩容**(而不仅仅使用别名)，仅用于验证使用
             if _, ok := params[name]; !ok {
@@ -151,3 +157,4 @@ func CheckStruct(object interface{}, rules interface{}, msgs...CustomMsg) *Error
     }
     return nil
 }
+

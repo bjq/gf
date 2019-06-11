@@ -1,20 +1,44 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
-// If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// If a copy of the MIT was not distributed with gm file,
+// You can obtain one at https://github.com/gogf/gf.
 
-// Package gmap provides kinds of concurrent-safe(alternative) maps.
-// 并发安全的哈希MAP.
+// Package gmap provides concurrent-safe/unsafe map containers.
 package gmap
 
-// 默认的Map对象其实就是InterfaceInterfaceMap的别名。
-// 注意
-// 1、这个Map是所有并发安全Map中效率最低的，如果对效率要求比较高的场合，请合理选择对应数据类型的Map；
-// 2、这个Map的优点是使用简便，由于键值都是interface{}类型，因此对键值的数据类型要求不高；
-// 3、底层实现比较类似于sync.Map；
-type Map = InterfaceInterfaceMap
+// Map based on hash table, alias of AnyAnyMap.
+type Map     = AnyAnyMap
+type HashMap = AnyAnyMap
 
-func New(safe...bool) *Map {
-    return NewInterfaceInterfaceMap(safe...)
+// New returns an empty hash map.
+// The param <unsafe> used to specify whether using map in un-concurrent-safety,
+// which is false in default, means concurrent-safe.
+func New(unsafe ...bool) *Map {
+	return NewAnyAnyMap(unsafe...)
+}
+
+// NewFrom returns a hash map from given map <data>.
+// Note that, the param <data> map will be set as the underlying data map(no deep copy),
+// there might be some concurrent-safe issues when changing the map outside.
+// The param <unsafe> used to specify whether using tree in un-concurrent-safety,
+// which is false in default.
+func NewFrom(data map[interface{}]interface{}, unsafe...bool) *Map {
+	return NewAnyAnyMapFrom(data, unsafe...)
+}
+
+// NewHashMap returns an empty hash map.
+// The param <unsafe> used to specify whether using map in un-concurrent-safety,
+// which is false in default, means concurrent-safe.
+func NewHashMap(unsafe ...bool) *Map {
+	return NewAnyAnyMap(unsafe...)
+}
+
+// NewHashMapFrom returns a hash map from given map <data>.
+// Note that, the param <data> map will be set as the underlying data map(no deep copy),
+// there might be some concurrent-safe issues when changing the map outside.
+// The param <unsafe> used to specify whether using tree in un-concurrent-safety,
+// which is false in default.
+func NewHashMapFrom(data map[interface{}]interface{}, unsafe...bool) *Map {
+	return NewAnyAnyMapFrom(data, unsafe...)
 }

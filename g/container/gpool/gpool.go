@@ -1,59 +1,69 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// Package gpool provides a object-reusable concurrent-safe pool.
-// 对象复用池.
+// Package gpool provides object-reusable concurrent-safe pool.
 package gpool
 
 import (
-    "time"
     "errors"
-    "gitee.com/johng/gf/g/os/gtime"
-    "gitee.com/johng/gf/g/container/glist"
-    "gitee.com/johng/gf/g/container/gtype"
+    "github.com/gogf/gf/g/container/glist"
+    "github.com/gogf/gf/g/container/gtype"
+    "github.com/gogf/gf/g/os/gtime"
+    "github.com/gogf/gf/g/os/gtimer"
+    "time"
 )
 
-// 对象池
+// Object-Reusable Pool.
 type Pool struct {
-    list       *glist.List                // 可用/闲置的文件指针链表
-    closed     *gtype.Bool                // 连接池是否已关闭
-    Expire     int64                      // (毫秒)闲置最大时间，超过该时间则被系统回收
-    NewFunc    func()(interface{}, error) // 创建对象的方法定义
-    ExpireFunc func(interface{})          // 对象的过期销毁方法(当池对象销毁需要执行额外的销毁操作时，需要定义该方法)
-                                          // 例如: net.Conn, os.File等对象都需要执行额外关闭操作
+    list       *glist.List                // Available/idle list.
+    closed     *gtype.Bool                // Whether the pool is closed.
+    Expire     int64                      // Max idle time(ms), after which it is recycled.
+    NewFunc    func()(interface{}, error) // Callback function to create item.
+    ExpireFunc func(interface{})          // Expired destruction function for objects.
+                                          // This function needs to be defined when the pool object
+                                          // needs to perform additional destruction operations.
+                                          // Eg: net.Conn, os.File, etc.
 }
 
-// 对象池数据项
+// Pool item.
 type poolItem struct {
-    expire int64               // (毫秒)过期时间
-    value  interface{}         // 对象值
+    expire int64               // Expire time(millisecond).
+    value  interface{}         // Value.
 }
 
-// 创建一个对象池，为保证执行效率，过期时间一旦设定之后无法修改
-// expire = 0表示不过期，expire < 0表示使用完立即回收，expire > 0表示超时回收
-// 注意过期时间单位为**毫秒**
-func New(expire int, newFunc...func() (interface{}, error)) *Pool {
+// Creation function for object.
+type NewFunc    func() (interface{}, error)
+
+// Destruction function for object.
+type ExpireFunc func(interface{})
+
+
+// New returns a new object pool.
+// To ensure execution efficiency, the expiration time cannot be modified once it is set.
+//
+// Expiration logistics:
+// expire = 0 : not expired;
+// expire < 0 : immediate expired after use;
+// expire > 0 : timeout expired;
+// Note that the expiration time unit is ** milliseconds **.
+func New(expire int, newFunc NewFunc, expireFunc...ExpireFunc) *Pool {
     r := &Pool {
         list    : glist.New(),
         closed  : gtype.NewBool(),
         Expire  : int64(expire),
+        NewFunc : newFunc,
     }
-    if len(newFunc) > 0 {
-        r.NewFunc = newFunc[0]
+    if len(expireFunc) > 0 {
+        r.ExpireFunc = expireFunc[0]
     }
-    go r.expireCheckingLoop()
+    gtimer.AddSingleton(time.Second, r.checkExpire)
     return r
 }
 
-// 设置对象过期销毁时的关闭方法
-func (p *Pool) SetExpireFunc(expireFunc func(interface{})) {
-    p.ExpireFunc = expireFunc
-}
-
-// 放一个临时对象到池中
+// Put puts an item to pool.
 func (p *Pool) Put(value interface{}) {
     item := &poolItem {
         value : value,
@@ -66,12 +76,12 @@ func (p *Pool) Put(value interface{}) {
     p.list.PushBack(item)
 }
 
-// 清空对象池
+// Clear clears pool, which means it will remove all items from pool.
 func (p *Pool) Clear() {
     p.list.RemoveAll()
 }
 
-// 从池中获得一个临时对象
+// Get picks an item from pool.
 func (p *Pool) Get() (interface{}, error) {
     for !p.closed.Val() {
         if r := p.list.PopFront(); r != nil {
@@ -89,33 +99,45 @@ func (p *Pool) Get() (interface{}, error) {
     return nil, errors.New("pool is empty")
 }
 
-// 查询当前池中的对象数量
+// Size returns the count of available items of pool.
 func (p *Pool) Size() int {
     return p.list.Len()
 }
 
-// 关闭池
+// Close closes the pool. If <p> has ExpireFunc,
+// then it automatically closes all items using this function before it's closed.
 func (p *Pool) Close() {
     p.closed.Set(true)
 }
 
-// 超时检测循环
-func (p *Pool) expireCheckingLoop() {
-    for !p.closed.Val() {
-        for {
-            if r := p.list.PopFront(); r != nil {
-                item := r.(*poolItem)
-                if item.expire == 0 || item.expire > gtime.Millisecond() {
-                    p.list.PushFront(item)
-                    break
-                }
-                if p.ExpireFunc != nil {
-                    p.ExpireFunc(item.value)
-                }
-            } else {
+// checkExpire removes expired items from pool every second.
+func (p *Pool) checkExpire() {
+    if p.closed.Val() {
+    	// If p has ExpireFunc,
+    	// then it must close all items using this function.
+    	if p.ExpireFunc != nil {
+		    for {
+			    if r := p.list.PopFront(); r != nil {
+				    p.ExpireFunc(r.(*poolItem).value)
+			    } else {
+				    break
+			    }
+		    }
+	    }
+        gtimer.Exit()
+    }
+    for {
+        if r := p.list.PopFront(); r != nil {
+            item := r.(*poolItem)
+            if item.expire == 0 || item.expire > gtime.Millisecond() {
+                p.list.PushFront(item)
                 break
             }
+            if p.ExpireFunc != nil {
+                p.ExpireFunc(item.value)
+            }
+        } else {
+            break
         }
-        time.Sleep(time.Second)
     }
 }

@@ -1,24 +1,24 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // 服务注册.
 
 package ghttp
 
 import (
-    "errors"
-    "strings"
-    "gitee.com/johng/gf/g/util/gstr"
     "bytes"
-    "runtime"
+    "github.com/gogf/gf/g/os/glog"
+    "github.com/gogf/gf/g/text/gstr"
     "reflect"
+    "runtime"
+    "strings"
 )
 
 // 注意该方法是直接绑定函数的内存地址，执行的时候直接执行该方法，不会存在初始化新的控制器逻辑
-func (s *Server) BindHandler(pattern string, handler HandlerFunc) error {
-    return s.bindHandlerItem(pattern, &handlerItem {
+func (s *Server) BindHandler(pattern string, handler HandlerFunc) {
+    s.bindHandlerItem(pattern, &handlerItem {
         name  : runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name(),
         rtype : gROUTE_REGISTER_HANDLER,
         ctype : nil,
@@ -30,26 +30,24 @@ func (s *Server) BindHandler(pattern string, handler HandlerFunc) error {
 // 绑定URI到操作函数/方法
 // pattern的格式形如：/user/list, put:/user, delete:/user, post:/user@johng.cn
 // 支持RESTful的请求格式，具体业务逻辑由绑定的处理方法来执行
-func (s *Server) bindHandlerItem(pattern string, item *handlerItem) error {
+func (s *Server) bindHandlerItem(pattern string, item *handlerItem) {
     if s.Status() == SERVER_STATUS_RUNNING {
-        return errors.New("server handlers cannot be changed while running")
+        glog.Error("server handlers cannot be changed while running")
+        return
     }
-    return s.setHandler(pattern, item)
+    s.setHandler(pattern, item)
 }
 
 // 通过映射数组绑定URI到操作函数/方法
-func (s *Server) bindHandlerByMap(m handlerMap) error {
+func (s *Server) bindHandlerByMap(m handlerMap) {
     for p, h := range m {
-        if err := s.bindHandlerItem(p, h); err != nil {
-            return err
-        }
+        s.bindHandlerItem(p, h)
     }
-    return nil
 }
 
 // 将内置的名称按照设定的规则合并到pattern中，内置名称按照{.xxx}规则命名。
 // 规则1：pattern中的URI包含{.struct}关键字，则替换该关键字为结构体名称；
-// 规则1：pattern中的URI包含{.method}关键字，则替换该关键字为方法名称；
+// 规则2：pattern中的URI包含{.method}关键字，则替换该关键字为方法名称；
 // 规则2：如果不满足规则1，那么直接将防发明附加到pattern中的URI后面；
 func (s *Server) mergeBuildInNameToPattern(pattern string, structName, methodName string, allowAppend bool) string {
     structName = s.nameToUrlPart(structName)

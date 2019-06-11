@@ -1,13 +1,13 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package gfsnotify
 
 import (
-    "gitee.com/johng/gf/g/container/glist"
+    "github.com/gogf/gf/g/container/glist"
 )
 
 // 监听循环
@@ -18,7 +18,7 @@ func (w *Watcher) startWatchLoop() {
                 // 关闭事件
                 case <- w.closeChan: return
 
-                    // 监听事件
+                // 监听事件
                 case ev := <- w.watcher.Events:
                     //fmt.Println("ev:", ev.String())
                     w.cache.SetIfNotExist(ev.String(), func() interface{} {
@@ -74,7 +74,7 @@ func (w *Watcher) getCallbacks(path string) (callbacks []*Callback) {
     return
 }
 
-// 事件循环
+// 事件循环(核心逻辑)
 func (w *Watcher) startEventLoop() {
     go func() {
         for {
@@ -126,10 +126,22 @@ func (w *Watcher) startEventLoop() {
 
                 }
                 // 执行回调处理，异步处理
-                for _, callback := range callbacks {
-                    go callback.Func(event)
+                for _, v := range callbacks {
+                    go func(callback *Callback) {
+                        defer func() {
+                            // 是否退出监控
+                            if err := recover(); err != nil {
+                                switch err {
+                                    case gFSNOTIFY_EVENT_EXIT:
+                                        w.RemoveCallback(callback.Id)
+                                    default:
+                                        panic(err)
+                                }
+                            }
+                        }()
+                        callback.Func(event)
+                    }(v)
                 }
-
             } else {
                 break
             }

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gitee.com/johng/gf/third/github.com/axgle/mahonia"
 	"flag"
+	"github.com/gogf/gf/third/github.com/axgle/mahonia"
 	"io"
 	"log"
 	"os"

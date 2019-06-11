@@ -1,8 +1,8 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // 事件回调(中间件)路由控制.
 
 package ghttp
@@ -10,16 +10,16 @@ package ghttp
 import (
     "container/list"
     "fmt"
-    "gitee.com/johng/gf/g/container/gset"
-    "gitee.com/johng/gf/g/util/gregex"
+    "github.com/gogf/gf/g/container/gset"
+    "github.com/gogf/gf/g/text/gregex"
     "reflect"
     "runtime"
     "strings"
 )
 
 // 绑定指定的hook回调函数, pattern参数同BindHandler，支持命名路由；hook参数的值由ghttp server设定，参数不区分大小写
-func (s *Server)BindHookHandler(pattern string, hook string, handler HandlerFunc) error {
-    return s.setHandler(pattern, &handlerItem {
+func (s *Server)BindHookHandler(pattern string, hook string, handler HandlerFunc) {
+    s.setHandler(pattern, &handlerItem {
         name  : runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name(),
         ctype : nil,
         fname : "",
@@ -28,13 +28,10 @@ func (s *Server)BindHookHandler(pattern string, hook string, handler HandlerFunc
 }
 
 // 通过map批量绑定回调函数
-func (s *Server)BindHookHandlerByMap(pattern string, hookmap map[string]HandlerFunc) error {
+func (s *Server)BindHookHandlerByMap(pattern string, hookmap map[string]HandlerFunc) {
     for k, v := range hookmap {
-        if err := s.BindHookHandler(pattern, k, v); err != nil {
-            return err
-        }
+        s.BindHookHandler(pattern, k, v)
     }
-    return nil
 }
 
 // 事件回调处理，内部使用了缓存处理.
@@ -46,11 +43,6 @@ func (s *Server) callHookHandler(hook string, r *Request) {
     }
     hookItems := s.getHookHandlerWithCache(hook, r)
     if len(hookItems) > 0 {
-        defer func() {
-            if e := recover(); e != nil && e != gEXCEPTION_EXIT {
-                panic(e)
-            }
-        }()
         // 备份原有的router变量
         oldRouterVars := r.routerVars
         for _, item := range hookItems {
@@ -70,11 +62,30 @@ func (s *Server) callHookHandler(hook string, r *Request) {
             }
             // 不使用hook的router对象，保留路由注册服务的router对象，不能覆盖
             // r.Router = item.handler.router
-            item.handler.faddr(r)
+            if err := s.niceCallHookHandler(item.handler.faddr, r); err != nil {
+                switch err {
+                    case gEXCEPTION_EXIT:
+                        break
+                    case gEXCEPTION_EXIT_ALL: fallthrough
+                    case gEXCEPTION_EXIT_HOOK:
+                        return
+                    default:
+                        panic(err)
+                }
+            }
         }
         // 恢复原有的router变量
         r.routerVars = oldRouterVars
     }
+}
+
+// 友好地调用方法
+func (s *Server) niceCallHookHandler(f HandlerFunc, r *Request) (err interface{}) {
+    defer func() {
+        err = recover()
+    }()
+    f(r)
+    return
 }
 
 // 查询请求处理方法, 带缓存机制，按照Host、Method、Path进行缓存.
@@ -150,7 +161,7 @@ func (s *Server) searchHookHandler(method, path, domain, hook string) []*handler
         }
 
         // 多层链表遍历检索，从数组末尾的链表开始遍历，末尾的深度高优先级也高
-        pushedSet := gset.NewStringSet(false)
+        pushedSet := gset.NewStringSet(true)
         for i := len(lists) - 1; i >= 0; i-- {
             for e := lists[i].Front(); e != nil; e = e.Next() {
                 handler := e.Value.(*handlerItem)

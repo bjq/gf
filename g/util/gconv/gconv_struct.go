@@ -1,159 +1,199 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2019 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package gconv
 
 import (
-    "gitee.com/johng/gf/g/container/gset"
-    "gitee.com/johng/gf/g/util/gstr"
-    "reflect"
-    "gitee.com/johng/gf/third/github.com/fatih/structs"
-    "strings"
     "errors"
     "fmt"
+    "github.com/gogf/gf/g/text/gstr"
+    "github.com/gogf/gf/third/github.com/fatih/structs"
+    "reflect"
+    "strings"
 )
 
-// 将params键值对参数映射到对应的struct对象属性上，第三个参数mapping为非必需，表示自定义名称与属性名称的映射关系。
-// 需要注意：
-// 1、第二个参数应当为struct对象指针；
-// 2、struct对象的**公开属性(首字母大写)**才能被映射赋值；
-// 3、map中的键名可以为小写，映射转换时会自动将键名首字母转为大写做匹配映射，如果无法匹配则忽略；
-func Struct(params interface{}, objPointer interface{}, attrMapping...map[string]string) error {
+// Struct maps the params key-value pairs to the corresponding struct object's properties.
+// The third parameter <mapping> is unnecessary, indicating the mapping rules between the custom key name
+// and the attribute name(case sensitive).
+//
+// Note:
+// 1. The <params> can be any type of map/struct, usually a map.
+// 2. The second parameter <pointer> should be a pointer to the struct object.
+// 3. Only the public attributes of struct object can be mapped.
+// 4. If <params> is a map, the key of the map <params> can be lowercase.
+//    It will automatically convert the first letter of the key to uppercase
+//    in mapping procedure to do the matching.
+//    It ignores the map key, if it does not match.
+func Struct(params interface{}, pointer interface{}, mapping...map[string]string) error {
     if params == nil {
-        return nil
+        return errors.New("params cannot be nil")
     }
-    isParamMap := true
-    paramsMap  := (map[string]interface{})(nil)
-    // 先将参数转为 map[string]interface{} 类型
-    if m, ok := params.(map[string]interface{}); ok {
-        paramsMap = m
-    } else {
-        paramsMap = make(map[string]interface{})
-        if reflect.ValueOf(params).Kind() == reflect.Map {
-            ks := reflect.ValueOf(params).MapKeys()
-            vs := reflect.ValueOf(params)
-            for _, k := range ks {
-                paramsMap[String(k.Interface())] = vs.MapIndex(k).Interface()
-            }
-        } else {
-            isParamMap = false
+    if pointer == nil {
+        return errors.New("object pointer cannot be nil")
+    }
+    paramsMap := Map(params)
+    if paramsMap == nil {
+        return fmt.Errorf("invalid params: %v", params)
+    }
+    // Using reflect to do the converting,
+    // it also supports type of reflect.Value for <pointer>(always in internal usage).
+	elem, ok := pointer.(reflect.Value)
+    if !ok {
+        rv := reflect.ValueOf(pointer)
+        if kind := rv.Kind(); kind != reflect.Ptr {
+            return fmt.Errorf("object pointer should be type of: %v", kind)
         }
-    }
-    // struct的反射对象
-    elem := reflect.Value{}
-    if v, ok := objPointer.(reflect.Value); ok {
-        elem = v
-    } else {
-        elem = reflect.ValueOf(objPointer).Elem()
-    }
-    // 如果给定的参数不是map类型，那么直接将参数值映射到第一个属性上
-    if !isParamMap {
-        if err := bindVarToStructByIndex(elem, 0, params); err != nil {
-            return err
+        // Using IsNil on reflect.Ptr variable is OK.
+        if !rv.IsValid() || rv.IsNil() {
+            return errors.New("object pointer cannot be nil")
         }
-        return nil
+        elem = rv.Elem()
     }
-    // 已执行过转换的属性，只执行一次转换
-    dmap := make(map[string]bool)
-    // 首先按照传递的映射关系进行匹配
-    if len(attrMapping) > 0 && len(attrMapping[0]) > 0 {
-        for mappingk, mappingv := range attrMapping[0] {
-            if v, ok := paramsMap[mappingk]; ok {
-                dmap[mappingv] = true
-                if err := bindVarToStruct(elem, mappingv, v); err != nil {
+    // It only performs one converting to the same attribute.
+    // doneMap is used to check repeated converting.
+    doneMap := make(map[string]bool)
+    // It first checks the passed mapping rules.
+    if len(mapping) > 0 && len(mapping[0]) > 0 {
+        for mapK, mapV := range mapping[0] {
+            if v, ok := paramsMap[mapK]; ok {
+                doneMap[mapV] = true
+                if err := bindVarToStructAttr(elem, mapV, v); err != nil {
                     return err
                 }
             }
         }
     }
-    // 其次匹配对象定义时绑定的属性名称
-    // 标签映射关系map，如果有的话
-    tagmap := getTagMapOfStruct(objPointer)
-    for tagk, tagv := range tagmap {
-        if _, ok := dmap[tagv]; ok {
+    // It secondly checks the tags of attributes.
+    tagMap := getTagMapOfStruct(pointer)
+    for tagK, tagV := range tagMap {
+        if _, ok := doneMap[tagV]; ok {
             continue
         }
-        if v, ok := paramsMap[tagk]; ok {
-            dmap[tagv] = true
-            if err := bindVarToStruct(elem, tagv, v); err != nil {
+        if v, ok := paramsMap[tagK]; ok {
+            doneMap[tagV] = true
+            if err := bindVarToStructAttr(elem, tagV, v); err != nil {
                 return err
             }
         }
     }
-    // 最后按照默认规则进行匹配
-    attrset  := gset.NewStringSet(false)
-    elemtype := elem.Type()
+    // It finally do the converting with default rules.
+    attrMap  := make(map[string]struct{})
+    elemType := elem.Type()
     for i := 0; i < elem.NumField(); i++ {
-        attrset.Add(elemtype.Field(i).Name)
+	    // Only do converting to public attributes.
+        if !gstr.IsLetterUpper(elemType.Field(i).Name[0]) {
+            continue
+        }
+        attrMap[elemType.Field(i).Name] = struct{}{}
     }
-    for mapk, mapv := range paramsMap {
+    for mapK, mapV := range paramsMap {
         name := ""
         for _, checkName := range []string {
-            gstr.UcFirst(mapk),
-            gstr.ReplaceByMap(mapk, map[string]string{
+            gstr.UcFirst(mapK),
+            gstr.ReplaceByMap(mapK, map[string]string{
                 "_" : "",
                 "-" : "",
                 " " : "",
-            })} {
-            if _, ok := dmap[checkName]; ok {
+            })}  {
+            if _, ok := doneMap[checkName]; ok {
                 continue
             }
-            if _, ok := tagmap[checkName]; ok {
+            if _, ok := tagMap[checkName]; ok {
                 continue
             }
-            // 循环查找属性名称进行匹配
-            attrset.Iterator(func(value string) bool {
+            // Loop to find the matched attribute name.
+            for value, _ := range attrMap {
                 if strings.EqualFold(checkName, value) {
                     name = value
-                    return false
+                    break
                 }
                 if strings.EqualFold(checkName, gstr.Replace(value, "_", "")) {
                     name = value
-                    return false
+                    break
                 }
-                return true
-            })
+            }
+            doneMap[checkName] = true
             if name != "" {
                 break
             }
         }
-        // 如果没有匹配到属性名称，放弃
+        // No matching, give up this attribute converting.
         if name == "" {
             continue
         }
-        if err := bindVarToStruct(elem, name, mapv); err != nil {
+        if err := bindVarToStructAttr(elem, name, mapV); err != nil {
             return err
         }
     }
     return nil
 }
 
+// StructDeep do Struct function recursively.
+// See Struct.
+func StructDeep(params interface{}, pointer interface{}, mapping...map[string]string) error {
+	if err := Struct(params, pointer, mapping...); err != nil {
+		return err
+	} else {
+		rv, ok := pointer.(reflect.Value)
+		if !ok {
+			rv = reflect.ValueOf(pointer)
+		}
+		kind := rv.Kind()
+		if kind == reflect.Ptr {
+			rv   = rv.Elem()
+			kind = rv.Kind()
+		}
+		switch kind {
+			case reflect.Struct:
+				rt := rv.Type()
+				for i := 0; i < rv.NumField(); i++ {
+					// Only do converting to public attributes.
+					if !gstr.IsLetterUpper(rt.Field(i).Name[0]) {
+						continue
+					}
+					trv := rv.Field(i)
+					switch trv.Kind() {
+						case reflect.Struct:
+							if err := StructDeep(params, trv, mapping...); err != nil {
+							    return err
+                            }
+					}
+				}
+		}
+	}
+	return nil
+}
+
 // 解析指针对象的tag
-func getTagMapOfStruct(objPointer interface{}) map[string]string {
-    tagmap := make(map[string]string)
+func getTagMapOfStruct(pointer interface{}) map[string]string {
+    tagMap := make(map[string]string)
     // 反射类型判断
     fields := ([]*structs.Field)(nil)
-    if v, ok := objPointer.(reflect.Value); ok {
+    if v, ok := pointer.(reflect.Value); ok {
         fields = structs.Fields(v.Interface())
     } else {
-        fields = structs.Fields(objPointer)
+        fields = structs.Fields(pointer)
     }
     // 将struct中定义的属性转换名称构建成tagmap
     for _, field := range fields {
-        if tag := field.Tag("gconv"); tag != "" {
+        tag := field.Tag("gconv")
+        if tag == "" {
+            tag = field.Tag("json")
+        }
+        if tag != "" {
             for _, v := range strings.Split(tag, ",") {
-                tagmap[strings.TrimSpace(v)] = field.Name()
+	            tagMap[strings.TrimSpace(v)] = field.Name()
             }
         }
     }
-    return tagmap
+    return tagMap
 }
 
 // 将参数值绑定到对象指定名称的属性上
-func bindVarToStruct(elem reflect.Value, name string, value interface{}) (err error) {
+func bindVarToStructAttr(elem reflect.Value, name string, value interface{}) (err error) {
     structFieldValue := elem.FieldByName(name)
     // 键名与对象属性匹配检测，map中如果有struct不存在的属性，那么不做处理，直接return
     if !structFieldValue.IsValid() {
@@ -167,7 +207,7 @@ func bindVarToStruct(elem reflect.Value, name string, value interface{}) (err er
     defer func() {
         // 如果转换失败，那么可能是类型不匹配造成(例如属性包含自定义类型)，那么执行递归转换
         if recover() != nil {
-            err = bindVarToStructIfDefaultConvertionFailed(structFieldValue, value)
+            err = bindVarToReflectValue(structFieldValue, value)
         }
     }()
     structFieldValue.Set(reflect.ValueOf(Convert(value, structFieldValue.Type().String())))
@@ -189,37 +229,74 @@ func bindVarToStructByIndex(elem reflect.Value, index int, value interface{}) (e
     defer func() {
         // 如果转换失败，那么可能是类型不匹配造成(例如属性包含自定义类型)，那么执行递归转换
         if recover() != nil {
-            err = bindVarToStructIfDefaultConvertionFailed(structFieldValue, value)
+            err = bindVarToReflectValue(structFieldValue, value)
         }
     }()
     structFieldValue.Set(reflect.ValueOf(Convert(value, structFieldValue.Type().String())))
     return nil
 }
 
-// 当默认的基本类型转换失败时，通过recover判断后执行反射类型转换
-func bindVarToStructIfDefaultConvertionFailed(structFieldValue reflect.Value, value interface{}) error {
+// 当默认的基本类型转换失败时，通过recover判断后执行反射类型转换(处理复杂类型)
+func bindVarToReflectValue(structFieldValue reflect.Value, value interface{}) error {
     switch structFieldValue.Kind() {
+        // 属性为结构体
         case reflect.Struct:
-            Struct(value, structFieldValue)
+            if err := Struct(value, structFieldValue); err != nil {
+                structFieldValue.Set(reflect.ValueOf(value))
+            }
 
+        // 属性为数组类型
         case reflect.Slice: fallthrough
         case reflect.Array:
             a := reflect.Value{}
             v := reflect.ValueOf(value)
             if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
-                a = reflect.MakeSlice(structFieldValue.Type(), v.Len(), v.Len())
-                for i := 0; i < v.Len(); i++ {
-                    n := reflect.New(structFieldValue.Type().Elem()).Elem()
-                    Struct(v.Index(i).Interface(), n)
-                    a.Index(i).Set(n)
+                if v.Len() > 0 {
+                    a  = reflect.MakeSlice(structFieldValue.Type(), v.Len(), v.Len())
+                    t := a.Index(0).Type()
+                    for i := 0; i < v.Len(); i++ {
+                        if t.Kind() == reflect.Ptr {
+                            e := reflect.New(t.Elem()).Elem()
+                            if err := Struct(v.Index(i).Interface(), e); err != nil {
+                                e.Set(reflect.ValueOf(v.Index(i).Interface()))
+                            }
+                            a.Index(i).Set(e.Addr())
+                        } else {
+                            e := reflect.New(t).Elem()
+                            if err := Struct(v.Index(i).Interface(), e); err != nil {
+                                e.Set(reflect.ValueOf(v.Index(i).Interface()))
+                            }
+                            a.Index(i).Set(e)
+                        }
+                    }
                 }
             } else {
-                a = reflect.MakeSlice(structFieldValue.Type(), 1, 1)
-                n := reflect.New(structFieldValue.Type().Elem()).Elem()
-                Struct(value, n)
-                a.Index(0).Set(n)
+                a  = reflect.MakeSlice(structFieldValue.Type(), 1, 1)
+                t := a.Index(0).Type()
+                if t.Kind() == reflect.Ptr {
+                    e := reflect.New(t.Elem()).Elem()
+                    if err := Struct(value, e); err != nil {
+                        e.Set(reflect.ValueOf(value))
+                    }
+                    a.Index(0).Set(e.Addr())
+                } else {
+                    e := reflect.New(t).Elem()
+                    if err := Struct(value, e); err != nil {
+                        e.Set(reflect.ValueOf(value))
+                    }
+                    a.Index(0).Set(e)
+                }
             }
             structFieldValue.Set(a)
+
+        // 属性为指针类型
+        case reflect.Ptr:
+            e := reflect.New(structFieldValue.Type().Elem()).Elem()
+            if err := Struct(value, e); err != nil {
+                e.Set(reflect.ValueOf(value))
+            }
+            structFieldValue.Set(e.Addr())
+
         default:
             return errors.New(fmt.Sprintf(`cannot convert to type "%s"`, structFieldValue.Type().String()))
     }

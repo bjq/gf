@@ -1,12 +1,12 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package ghttp
 
-import "gitee.com/johng/gf/g/container/gvar"
+import "github.com/gogf/gf/g/container/gvar"
 
 // 设置请求流程共享变量
 func (r *Request) SetParam(key string, value interface{}) {
@@ -17,12 +17,15 @@ func (r *Request) SetParam(key string, value interface{}) {
 }
 
 // 获取请求流程共享变量
-func (r *Request) GetParam(key string) gvar.VarRead {
+func (r *Request) GetParam(key string, def...interface{}) *gvar.Var {
     if r.params != nil {
         if v, ok := r.params[key]; ok {
-            return gvar.New(v, false)
+            return gvar.New(v, true)
         }
     }
-    return gvar.New(nil, false)
+    if len(def) > 0 {
+    	return gvar.New(def[0], true)
+    }
+    return gvar.New(nil, true)
 }
 

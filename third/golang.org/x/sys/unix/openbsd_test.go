@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitee.com/johng/gf/third/golang.org/x/sys/unix"
+	"github.com/gogf/gf/third/golang.org/x/sys/unix"
 )
 
 type testProc struct {
@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 func init() {
 	testProcs["pledge"] = testProc{
 		func() {
-			fmt.Println(unix.Pledge("", nil))
+			fmt.Println(unix.Pledge("", ""))
 			os.Exit(0)
 		},
 		func() error {

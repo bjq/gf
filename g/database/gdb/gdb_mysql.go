@@ -1,15 +1,16 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 
 package gdb
 
 import (
-    "fmt"
-    "database/sql"
+	"database/sql"
+	"fmt"
+	_ "github.com/gogf/gf/third/github.com/gf-third/mysql"
 )
 
 // 数据库链接对象
@@ -20,13 +21,13 @@ type dbMysql struct {
 // 创建SQL操作对象，内部采用了lazy link处理
 func (db *dbMysql) Open (config *ConfigNode) (*sql.DB, error) {
     var source string
-    if config.Linkinfo != "" {
-        source = config.Linkinfo
+    if config.LinkInfo != "" {
+        source = config.LinkInfo
     } else {
         source = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&multiStatements=true",
             config.User, config.Pass, config.Host, config.Port, config.Name, config.Charset)
     }
-    if db, err := sql.Open("mysql", source); err == nil {
+    if db, err := sql.Open("gf-mysql", source); err == nil {
         return db, nil
     } else {
         return nil, err

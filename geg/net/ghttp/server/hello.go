@@ -1,16 +1,16 @@
 package main
 
 import (
-    "gitee.com/johng/gf/g"
-    "gitee.com/johng/gf/g/net/ghttp"
+	"github.com/gogf/gf/g"
+	"github.com/gogf/gf/g/net/ghttp"
 )
 
 func main() {
-    s := g.Server()
-    s.SetIndexFolder(true)
-    s.BindHandler("/", func(r *ghttp.Request){
-        r.Response.Write("Hello World")
-    })
-    s.SetPort(8199)
-    s.Run()
+	s := g.Server()
+	s.SetIndexFolder(true)
+	s.BindHandler("/", func(r *ghttp.Request) {
+		r.Response.Write("hello world")
+	})
+	s.SetPort(8199)
+	s.Run()
 }

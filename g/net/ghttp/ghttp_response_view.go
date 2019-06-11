@@ -1,25 +1,21 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 //
 
 package ghttp
 
 import (
-    "gitee.com/johng/gf/g/os/gview"
-    "gitee.com/johng/gf/g/frame/gins"
+    "github.com/gogf/gf/g/os/gview"
+    "github.com/gogf/gf/g/frame/gins"
 )
 
 // 展示模板，可以给定模板参数，及临时的自定义模板函数
-func (r *Response) WriteTpl(tpl string, params map[string]interface{}, funcmap...map[string]interface{}) error {
-    fmap := make(gview.FuncMap)
-    if len(funcmap) > 0 {
-        fmap = funcmap[0]
-    }
-    if b, err := r.ParseTpl(tpl, params, fmap); err != nil {
-        r.Write("Tpl Parsing Error: " + err.Error())
+func (r *Response) WriteTpl(tpl string, params...gview.Params) error {
+    if b, err := r.ParseTpl(tpl, params...); err != nil {
+        r.Write("Template Parsing Error: " + err.Error())
         return err
     } else {
         r.Write(b)
@@ -28,13 +24,9 @@ func (r *Response) WriteTpl(tpl string, params map[string]interface{}, funcmap..
 }
 
 // 展示模板内容，可以给定模板参数，及临时的自定义模板函数
-func (r *Response) WriteTplContent(content string, params map[string]interface{}, funcmap...map[string]interface{}) error {
-    fmap := make(gview.FuncMap)
-    if len(funcmap) > 0 {
-        fmap = funcmap[0]
-    }
-    if b, err := r.ParseTplContent(content, params, fmap); err != nil {
-        r.Write("Tpl Parsing Error: " + err.Error())
+func (r *Response) WriteTplContent(content string, params...gview.Params) error {
+    if b, err := r.ParseTplContent(content, params...); err != nil {
+        r.Write("Template Parsing Error: " + err.Error())
         return err
     } else {
         r.Write(b)
@@ -43,62 +35,30 @@ func (r *Response) WriteTplContent(content string, params map[string]interface{}
 }
 
 // 解析模板文件，并返回模板内容
-func (r *Response) ParseTpl(tpl string, params gview.Params, funcmap...map[string]interface{}) ([]byte, error) {
-    fmap := make(gview.FuncMap)
-    if len(funcmap) > 0 {
-        fmap = funcmap[0]
-    }
-    return gins.View().Parse(tpl, r.buildInVars(params), r.buildInFuncs(fmap))
+func (r *Response) ParseTpl(tpl string, params...gview.Params) (string, error) {
+    return gins.View().Parse(tpl, r.buildInVars(params...))
 }
 
 // 解析并返回模板内容
-func (r *Response) ParseTplContent(content string, params gview.Params, funcmap...map[string]interface{}) ([]byte, error) {
-    fmap := make(gview.FuncMap)
-    if len(funcmap) > 0 {
-        fmap = funcmap[0]
-    }
-    return gins.View().ParseContent(content, r.buildInVars(params), r.buildInFuncs(fmap))
+func (r *Response) ParseTplContent(content string, params...gview.Params) (string, error) {
+    return gins.View().ParseContent(content, r.buildInVars(params...))
 }
 
-// 内置变量
-func (r *Response) buildInVars(params map[string]interface{}) map[string]interface{} {
-    if params == nil {
-        params = make(map[string]interface{})
-    }
-
-    c := gins.Config()
-    if c.GetFilePath() != "" {
-        params["Config"]  = c.GetMap("")
+// 内置变量/对象
+func (r *Response) buildInVars(params...map[string]interface{}) map[string]interface{} {
+	vars := map[string]interface{}(nil)
+    if len(params) > 0 {
+	    vars = params[0]
     } else {
-        params["Config"]  = nil
+	    vars = make(map[string]interface{})
     }
-    params["Cookie"]  = r.request.Cookie.Map()
-    params["Session"] = r.request.Session.Data()
-    return params
-}
-
-// 内置函数
-func (r *Response) buildInFuncs(funcmap map[string]interface{}) map[string]interface{} {
-    if funcmap == nil {
-        funcmap = make(map[string]interface{})
-    }
-    funcmap["get"]       = r.funcGet
-    funcmap["post"]      = r.funcPost
-    funcmap["request"]   = r.funcRequest
-    return funcmap
-}
-
-// 模板内置函数: get
-func (r *Response) funcGet(key string, def...string) string {
-    return r.request.GetQueryString(key, def...)
-}
-
-// 模板内置函数: post
-func (r *Response) funcPost(key string, def...string) string {
-    return r.request.GetPostString(key, def...)
-}
-
-// 模板内置函数: request
-func (r *Response) funcRequest(key string, def...string) string {
-    return r.request.Get(key, def...)
+	// 当配置文件不存在时就不赋值该模板变量，不然会报错
+	if c := gins.Config(); c.FilePath() != "" {
+		vars["Config"] = c.GetMap("")
+	}
+	vars["Cookie"]  = r.request.Cookie.Map()
+	vars["Session"] = r.request.Session.Map()
+	vars["Get"]     = r.request.GetQueryMap()
+	vars["Post"]    = r.request.GetPostMap()
+    return vars
 }

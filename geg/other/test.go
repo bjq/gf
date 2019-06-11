@@ -1,7 +1,11 @@
 package main
 
-import "gitee.com/johng/gf/g/util/gtest"
+import (
+	"fmt"
+	"github.com/gogf/gf/g/os/gtime"
+)
 
 func main() {
-    gtest.Assert(1, 2)
+	fmt.Println(gtime.Now().Format("U"))
+	fmt.Println(gtime.Second())
 }

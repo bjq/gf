@@ -1,8 +1,8 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package ghttp
 
@@ -10,19 +10,19 @@ import (
     "bytes"
     "errors"
     "fmt"
-    "gitee.com/johng/gf/g/container/garray"
-    "gitee.com/johng/gf/g/container/gmap"
-    "gitee.com/johng/gf/g/container/gtype"
-    "gitee.com/johng/gf/g/os/gcache"
-    "gitee.com/johng/gf/g/os/genv"
-    "gitee.com/johng/gf/g/os/gfile"
-    "gitee.com/johng/gf/g/os/glog"
-    "gitee.com/johng/gf/g/os/gproc"
-    "gitee.com/johng/gf/g/os/gtime"
-    "gitee.com/johng/gf/g/util/gconv"
-    "gitee.com/johng/gf/g/util/gregex"
-    "gitee.com/johng/gf/third/github.com/gorilla/websocket"
-    "gitee.com/johng/gf/third/github.com/olekukonko/tablewriter"
+    "github.com/gogf/gf/g/container/garray"
+    "github.com/gogf/gf/g/container/gmap"
+    "github.com/gogf/gf/g/container/gtype"
+    "github.com/gogf/gf/g/os/gcache"
+    "github.com/gogf/gf/g/os/genv"
+	"github.com/gogf/gf/g/os/gfile"
+	"github.com/gogf/gf/g/os/glog"
+    "github.com/gogf/gf/g/os/gproc"
+    "github.com/gogf/gf/g/os/gtimer"
+    "github.com/gogf/gf/g/text/gregex"
+    "github.com/gogf/gf/g/util/gconv"
+    "github.com/gogf/gf/third/github.com/gorilla/websocket"
+    "github.com/gogf/gf/third/github.com/olekukonko/tablewriter"
     "net/http"
     "os"
     "reflect"
@@ -39,7 +39,8 @@ type (
         name             string                           // 服务名称，方便识别
         config           ServerConfig                     // 配置对象
         servers          []*gracefulServer                // 底层http.Server列表
-        methodsMap       map[string]struct{}              // 所有支持的HTTP Method(初始化时自动填充)
+        serverCount      *gtype.Int                       // 底层http.Server数量
+        closeChan        chan struct{}                    // 用以关闭事件通知的通道
         servedCount      *gtype.Int                       // 已经服务的请求数(4-8字节，不考虑溢出情况)，同时作为请求ID
         // 服务注册相关
         serveTree        map[string]interface{}           // 所有注册的服务回调函数(路由表，树型结构，哈希表+链表优先级匹配)
@@ -91,26 +92,29 @@ type (
     }
 
     // pattern与回调函数的绑定map
-    handlerMap  map[string]*handlerItem
+    handlerMap    = map[string]*handlerItem
 
     // HTTP注册函数
-    HandlerFunc func(r *Request)
+    HandlerFunc   = func(r *Request)
 
     // 文件描述符map
-    listenerFdMap map[string]string
+    listenerFdMap = map[string]string
 )
 
 const (
-    SERVER_STATUS_STOPPED      = 0               // Server状态：停止
-    SERVER_STATUS_RUNNING      = 1               // Server状态：运行
+    SERVER_STATUS_STOPPED      = 0 // Server状态：停止
+    SERVER_STATUS_RUNNING      = 1 // Server状态：运行
     HOOK_BEFORE_SERVE          = "BeforeServe"
     HOOK_AFTER_SERVE           = "AfterServe"
     HOOK_BEFORE_OUTPUT         = "BeforeOutput"
     HOOK_AFTER_OUTPUT          = "AfterOutput"
+
+    // Deprecated.
     HOOK_BEFORE_CLOSE          = "BeforeClose"
+    // Deprecated.
     HOOK_AFTER_CLOSE           = "AfterClose"
 
-    gHTTP_METHODS              = "GET,PUT,POST,DELETE,PATCH,HEAD,CONNECT,OPTIONS,TRACE"
+    HTTP_METHODS               = "GET,PUT,POST,DELETE,PATCH,HEAD,CONNECT,OPTIONS,TRACE"
     gDEFAULT_SERVER            = "default"
     gDEFAULT_DOMAIN            = "default"
     gDEFAULT_METHOD            = "ALL"
@@ -118,37 +122,56 @@ const (
     gROUTE_REGISTER_OBJECT     = 2
     gROUTE_REGISTER_CONTROLLER = 3
     gEXCEPTION_EXIT            = "exit"
+    gEXCEPTION_EXIT_ALL        = "exit_all"
+    gEXCEPTION_EXIT_HOOK       = "exit_hook"
 )
 
 var (
-    // Server表，用以存储和检索名称与Server对象之间的关联关系
-    serverMapping    = gmap.NewStringInterfaceMap()
+    // 所有支持的HTTP Method Map(初始化时自动填充),
+    // 用于快速检索需要
+    methodsMap       = make(map[string]struct{})
 
-    // 正常运行的Server数量，如果没有运行、失败或者全部退出，那么该值为0
+    // WebServer表，用以存储和检索名称与Server对象之间的关联关系
+    serverMapping    = gmap.NewStrAnyMap()
+
+    // 正常运行的WebServer数量，如果没有运行、失败或者全部退出，那么该值为0
     serverRunning    = gtype.NewInt()
 
-    // Web Socket默认配置
+    // WebSocket默认配置
     wsUpgrader       = websocket.Upgrader {
         // 默认允许WebSocket请求跨域，权限控制可以由业务层自己负责，灵活度更高
         CheckOrigin: func(r *http.Request) bool {
             return true
         },
     }
-    // Web Server已完成服务事件通道，当有事件时表示服务完成，当前进程退出
-    doneChan         = make(chan struct{}, 1000)
+    // WebServer已完成服务事件通道，当有事件时表示服务完成，当前进程退出
+    allDoneChan         = make(chan struct{}, 1000)
 
     // 用于服务进程初始化，只能初始化一次，采用“懒初始化”(在server运行时才初始化)
-    serverProcInited = gtype.NewBool()
+    serverProcessInited = gtype.NewBool()
+
+    // 是否开启WebServer平滑重启特性, 会开启额外的本地端口监听，用于进程管理通信(默认开启)
+    gracefulEnabled     = true
 )
 
+func init() {
+    for _, v := range strings.Split(HTTP_METHODS, ",") {
+        methodsMap[v] = struct{}{}
+    }
+}
+
+// 是否开启平滑重启特性
+func SetGraceful(enabled bool) {
+    gracefulEnabled = enabled
+}
 
 // Web Server进程初始化.
 // 注意该方法不能放置于包初始化方法init中，不使用ghttp.Server的功能便不能初始化对应的协程goroutine逻辑.
-func serverProcInit() {
-    if serverProcInited.Val() {
+func serverProcessInit() {
+    if serverProcessInited.Val() {
         return
     }
-    serverProcInited.Set(true)
+    serverProcessInited.Set(true)
     // 如果是完整重启，那么需要等待主进程销毁后，才开始执行监听，防止端口冲突
     if genv.Get(gADMIN_ACTION_RESTART_ENVKEY) != "" {
         if p, e := os.FindProcess(gproc.PPid()); e == nil {
@@ -162,7 +185,14 @@ func serverProcInit() {
     // 信号量管理操作监听
     go handleProcessSignal()
     // 异步监听进程间消息
-    go handleProcessMessage()
+    if gracefulEnabled {
+        go handleProcessMessage()
+    }
+
+    // 是否处于开发环境，这里调用该方法初始化main包路径值，
+    // 防止异步服务goroutine获取main包路径失败，
+    // 该方法只有在main协程中才会执行。
+    gfile.MainPkgPath()
 }
 
 // 获取/创建一个默认配置的HTTP Server(默认监听端口是80)
@@ -178,7 +208,8 @@ func GetServer(name...interface{}) (*Server) {
     s := &Server {
         name             : sname,
         servers          : make([]*gracefulServer, 0),
-        methodsMap       : make(map[string]struct{}),
+        closeChan        : make(chan struct{}, 100),
+        serverCount      : gtype.NewInt(),
         statusHandlerMap : make(map[string]HandlerFunc),
         serveTree        : make(map[string]interface{}),
         hooksTree        : make(map[string]interface{}),
@@ -189,11 +220,6 @@ func GetServer(name...interface{}) (*Server) {
         servedCount      : gtype.NewInt(),
         logger           : glog.New(),
     }
-    // 日志的标准输出默认关闭，但是错误信息会特殊处理
-    s.logger.SetStdPrint(false)
-    for _, v := range strings.Split(gHTTP_METHODS, ",") {
-        s.methodsMap[v] = struct{}{}
-    }
     // 初始化时使用默认配置
     s.SetConfig(defaultServerConfig)
     // 记录到全局ServerMap中
@@ -201,15 +227,20 @@ func GetServer(name...interface{}) (*Server) {
     return s
 }
 
-// 作为守护协程异步执行(当同一进程中存在多个Web Server时，需要采用这种方式执行)
-// 需要结合Wait方式一起使用
+// 作为守护协程异步执行(当同一进程中存在多个Web Server时，需要采用这种方式执行),
+// 需要结合Wait方式一起使用.
 func (s *Server) Start() error {
     // 服务进程初始化，只会初始化一次
-    serverProcInit()
+    serverProcessInit()
 
     // 当前Web Server状态判断
     if s.Status() == SERVER_STATUS_RUNNING {
         return errors.New("server is already running")
+    }
+
+    // 没有注册任何路由，且没有开启文件服务，那么提示错误
+    if len(s.routesMap) == 0 && !s.config.FileServerEnabled {
+        glog.Fatal("[ghttp] no router set or static feature enabled, did you forget import the router?")
     }
 
     // 底层http server配置
@@ -217,11 +248,12 @@ func (s *Server) Start() error {
         s.config.Handler = http.HandlerFunc(s.defaultHttpHandle)
     }
     // 不允许访问的路由注册(使用HOOK实现)
+    // TODO 去掉HOOK的实现方式
     if s.config.DenyRoutes != nil {
         for _, v := range s.config.DenyRoutes {
             s.BindHookHandler(v, HOOK_BEFORE_SERVE, func(r *Request) {
                 r.Response.WriteStatus(403)
-                r.Exit()
+                r.ExitAll()
             })
         }
     }
@@ -249,15 +281,11 @@ func (s *Server) Start() error {
 
     // 如果是子进程，那么服务开启后通知父进程销毁
     if gproc.IsChild() {
-        gtime.SetTimeout(2*time.Second, func() {
+        gtimer.SetTimeout(2*time.Second, func() {
             if err := gproc.Send(gproc.PPid(), []byte("exit"), gADMIN_GPROC_COMM_GROUP); err != nil {
-                panic(err)
+                glog.Error("[ghttp] server error in process communication:", err)
             }
         })
-    }
-    // 是否处于开发环境
-    if gfile.MainPkgPath() != "" {
-        glog.Debug("GF notices that you're in develop environment, so error logs are auto enabled to stdout.")
     }
 
     // 打印展示路由表
@@ -269,8 +297,8 @@ func (s *Server) Start() error {
 func (s *Server) DumpRoutesMap() {
     if s.config.DumpRouteMap && len(s.routesMap) > 0 {
         // (等待一定时间后)当所有框架初始化信息打印完毕之后才打印路由表信息
-        gtime.SetTimeout(50*time.Millisecond, func() {
-            glog.Header(false).Println(fmt.Sprintf("\n%s\n", s.GetRouteMap()))
+        gtimer.SetTimeout(50*time.Millisecond, func() {
+            glog.Header(false).Println(fmt.Sprintf("\n%s", s.GetRouteMap()))
         })
     }
 }
@@ -307,7 +335,7 @@ func (s *Server) GetRouteMap() string {
             }
             if _, ok := m[item.domain]; !ok {
                 // 注意排序函数的逻辑
-                m[item.domain] = garray.NewSortedArray(100, func(v1, v2 interface{}) int {
+                m[item.domain] = garray.NewSortedArraySize(100, func(v1, v2 interface{}) int {
                     item1 := v1.(*tableItem)
                     item2 := v2.(*tableItem)
                     r := 0
@@ -328,7 +356,10 @@ func (s *Server) GetRouteMap() string {
     }
     addr := s.config.Addr
     if s.config.HTTPSAddr != "" {
-        addr += ",tls" + s.config.HTTPSAddr
+        if len(addr) > 0 {
+            addr += ","
+        }
+        addr += "tls" + s.config.HTTPSAddr
     }
     for _, a := range m {
         data := make([]string, 8)
@@ -356,9 +387,9 @@ func (s *Server) Run() error {
         return err
     }
     // 阻塞等待服务执行完成
-    <- doneChan
+    <- s.closeChan
 
-    glog.Printfln("%d: all servers shutdown", gproc.Pid())
+    glog.Printf("%d: all servers shutdown", gproc.Pid())
     return nil
 }
 
@@ -367,16 +398,17 @@ func (s *Server) Run() error {
 // 这是一个与进程相关的方法
 func Wait() {
     // 阻塞等待服务执行完成
-    <- doneChan
+    <- allDoneChan
 
-    glog.Printfln("%d: all servers shutdown", gproc.Pid())
+    glog.Printf("%d: all servers shutdown", gproc.Pid())
 }
 
 
 // 开启底层Web Server执行
 func (s *Server) startServer(fdMap listenerFdMap) {
     var httpsEnabled bool
-    if len(s.config.HTTPSCertPath) > 0 && len(s.config.HTTPSKeyPath) > 0 {
+    // 判断是否启用HTTPS
+    if len(s.config.TLSConfig.Certificates) > 0 || (len(s.config.HTTPSCertPath) > 0 && len(s.config.HTTPSKeyPath) > 0) {
         // ================
         // HTTPS
         // ================
@@ -451,23 +483,28 @@ func (s *Server) startServer(fdMap listenerFdMap) {
         }
     }
     // 开始执行异步监听
+    serverRunning.Add(1)
     for _, v := range s.servers {
         go func(server *gracefulServer) {
-            serverRunning.Add(1)
+            s.serverCount.Add(1)
             err := (error)(nil)
             if server.isHttps {
-                err = server.ListenAndServeTLS(s.config.HTTPSCertPath, s.config.HTTPSKeyPath)
+                err = server.ListenAndServeTLS(s.config.HTTPSCertPath, s.config.HTTPSKeyPath, &s.config.TLSConfig)
             } else {
                 err = server.ListenAndServe()
             }
-            serverRunning.Add(-1)
             // 如果非关闭错误，那么提示报错，否则认为是正常的服务关闭操作
             if err != nil && !strings.EqualFold(http.ErrServerClosed.Error(), err.Error()) {
                 glog.Fatal(err)
             }
-            // 如果所有异步的Server都已经停止，并且没有在管理操作(重启/关闭)进行中，那么主Server就可以退出了
-            if serverRunning.Val() < 1 && serverProcessStatus.Val() == 0 {
-                doneChan <- struct{}{}
+            // 如果所有异步的http.Server都已经停止，那么WebServer就可以退出了
+            if s.serverCount.Add(-1) < 1 {
+                s.closeChan <- struct{}{}
+                // 如果所有WebServer都退出，那么退出Wait等待
+                if serverRunning.Add(-1) < 1 {
+                    serverMapping.Remove(s.name)
+                    allDoneChan <- struct{}{}
+                }
             }
         }(v)
     }

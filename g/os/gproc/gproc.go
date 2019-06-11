@@ -1,23 +1,25 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 进程管理/通信.
-// 本进程管理从syscall, os.StartProcess, exec.Cmd都使用过，
+// Package gproc implements communication and management of processes.
+// 
+// 进程管理/通信, 
+// 本进程管理从syscall, os.StartProcess, exec.Cmd都使用过, 
 // 最后采用了exec.Cmd来实现多进程管理，这是一个顶层的跨平台封装，兼容性更好，另外两个是偏底层的接口。
 package gproc
 
 import (
     "os"
     "time"
-    "gitee.com/johng/gf/g/util/gconv"
+    "github.com/gogf/gf/g/util/gconv"
     "strings"
     "bytes"
     "io"
     "runtime"
-    "gitee.com/johng/gf/g/os/gfile"
+    "github.com/gogf/gf/g/os/gfile"
 )
 
 const (
@@ -25,8 +27,10 @@ const (
     gPROC_TEMP_DIR_ENV_KEY = "GPROC_TEMP_DIR"
 )
 
-// 进程开始执行时间
-var processStartTime = time.Now()
+var (
+    // 进程开始执行时间
+    processStartTime = time.Now()
+)
 
 // 获取当前进程ID
 func Pid() int {

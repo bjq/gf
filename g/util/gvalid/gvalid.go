@@ -1,14 +1,16 @@
-// Copyright 2017-2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 数据校验.
+// Package gvalid implements powerful and useful data/form validation functionality.
+// 
+// 数据/表单校验.
 package gvalid
 
 import (
-    "gitee.com/johng/gf/g/util/gregex"
+    "github.com/gogf/gf/g/text/gregex"
     "strings"
 )
 
@@ -48,7 +50,7 @@ min                  格式：min:min                               说明：参
 max                  格式：max:max                               说明：参数最大为max(支持整形和浮点类型参数)
 json                 格式：json                                  说明：判断数据格式为JSON
 integer              格式：integer                               说明：整数
-float                格式：float                                 说明：浮点数
+float                格式：float                                 说明：浮点数(整数也是浮点数)
 boolean              格式：boolean                               说明：布尔值(1,true,on,yes:true | 0,false,off,no,"":false)
 same                 格式：same:field                            说明：参数值必需与field参数的值相同
 different            格式：different:field                       说明：参数值不能与field参数的值相同
@@ -65,35 +67,4 @@ type CustomMsg = map[string]interface{}
 func parseSequenceTag(tag string) (name, rule, msg string) {
     match, _ := gregex.MatchString(`\s*((\w+)\s*@){0,1}\s*([^#]+)\s*(#\s*(.*)){0,1}\s*`, tag)
     return strings.TrimSpace(match[2]), strings.TrimSpace(match[3]), strings.TrimSpace(match[5])
-}
-
-// 解析sequence tag为标准校验规则及自定义错误
-func parseSequenceTags(tags []string) (rules map[string]string, msgs map[string]interface{}) {
-    rules = make(map[string]string)
-    msgs  = make(map[string]interface{})
-    for _, tag := range tags {
-        name, rule, msg := parseSequenceTag(tag)
-        // 校验规则
-        if len(name) == 0 {
-            continue
-        }
-        rules[name] = rule
-        // 错误提示
-        if len(msg) > 0 {
-            ruleArray := strings.Split(rule, "|")
-            msgArray  := strings.Split(msg, "|")
-            for k, v := range ruleArray {
-                if len(msgArray[k]) == 0 {
-                    continue
-                }
-                // 关联校验会有":"符号
-                array := strings.Split(v, ":")
-                if _, ok := msgs[name]; !ok {
-                    msgs[name] = make(map[string]string)
-                }
-                msgs[name].(map[string]string)[strings.TrimSpace(array[0])] = strings.TrimSpace(msgArray[k])
-            }
-        }
-    }
-    return
 }

@@ -1,51 +1,64 @@
 # GoFrame
-<img align="right" height="150px" src="https://gfer.me/cover.png">
+<div align=center>
+<img src="https://goframe.org/logo.png" width="100"/>
 
-[![Go Doc](https://godoc.org/github.com/johng-cn/gf?status.svg)](https://godoc.org/github.com/johng-cn/gf) 
-[![Build Status](https://travis-ci.org/johng-cn/gf.svg?branch=master)](https://travis-ci.org/johng-cn/gf) 
-[![Go Report](https://goreportcard.com/badge/github.com/johng-cn/gf)](https://goreportcard.com/report/github.com/johng-cn/gf) 
-[![Documents](https://img.shields.io/badge/docs-100%25-green.svg)](https://gfer.me) 
-[![License](https://img.shields.io/github/license/johng-cn/gf.svg?style=flat)](https://github.com/johng-cn/gf)
-[![Language](https://img.shields.io/badge/language-go-blue.svg)](https://github.com/johng-cn/gf)
-[![Release](https://img.shields.io/github/release/johng-cn/gf.svg?style=flat)](https://github.com/johng-cn/gf/releases)
+[![Go Doc](https://godoc.org/github.com/gogf/gf?status.svg)](https://godoc.org/github.com/gogf/gf) 
+[![Build Status](https://travis-ci.org/gogf/gf.svg?branch=master)](https://travis-ci.org/gogf/gf) 
+[![Go Report](https://goreportcard.com/badge/github.com/gogf/gf)](https://goreportcard.com/report/github.com/gogf/gf) 
+[![Code Coverage](https://codecov.io/gh/gogf/gf/branch/master/graph/badge.svg)](https://codecov.io/gh/gogf/gf/branch/master)
+[![Production Ready](https://img.shields.io/badge/production-ready-blue.svg)](https://github.com/gogf/gf)
+[![License](https://img.shields.io/github/license/gogf/gf.svg?style=flat)](https://github.com/gogf/gf)
 
-<!--
-[![Code Coverage](https://codecov.io/gh/johng-cn/gf/branch/master/graph/badge.svg)](https://codecov.io/gh/johng-cn/gf)
-[![Code Helper](https://www.codetriage.com/johng-cn/gf/badges/users.svg)](https://www.codetriage.com/johng-cn/gf) 
---> 
+</div>
 
-`GF(Go Frame)`是一款模块化、松耦合、轻量级、高性能的Go应用开发框架。支持热重启、热更新、多域名、多端口、多服务、HTTP/HTTPS、动态路由等特性
-，并提供了Web服务开发的系列核心组件，如：Router、Cookie、Session、服务注册、配置管理、模板引擎、数据校验、分页管理、数据库ORM等等等等，
-并且提供了数十个内置核心开发模块集，如：缓存、日志、时间、命令行、二进制、文件锁、内存锁、对象池、连接池、数据编码、进程管理、进程通信、文件监控、定时任务、TCP/UDP组件、
-并发安全容器等等等等等等。
+`GF(Go Frame)`是一款模块化、松耦合、生产级Go应用开发框架。提供了常用的核心开发组件，如：缓存、日志、文件、时间、队列、数组、集合、字符串、定时器、命令行、文件锁、内存锁、对象池、连接池、数据校验、数据编码、文件监控、定时任务、数据库ORM、TCP/UDP组件、进程管理/通信、
+并发安全容器等等。并提供了Web服务开发的系列核心组件，如：Router、Cookie、Session、服务注册、配置管理、模板引擎等等，支持热重启、热更新、多域名、多端口、多服务、HTTPS、Rewrite等特性。
+
+
+# 特点
+* 模块化、松耦合设计；
+* 模块丰富，开箱即用；
+* 详尽的开发文档及示例；
+* 完善的本地中文化支持；
+* 致力于项目的通用方案；
+* 更适合企业及团队使用；
+* 更多请查阅文档及源码；
 
 # 安装
 ```html
-go get -u gitee.com/johng/gf
+go get -u github.com/gogf/gf
+```
+或者
+`go.mod`:
+```
+require github.com/gogf/gf latest
 ```
 
 # 限制
 ```shell
-golang版本 >= 1.9.2
+golang版本 >= 1.10
 ```
 
 # 架构
 <div align=center>
-<img src="https://gfer.me/images/arch.png"/>
+<img src="https://goframe.org/images/arch.png"/>
 </div>
 
 
-# 文档
-[https://gfer.me](https://gfer.me)
 
+# 文档
+
+开发文档：[https://goframe.org](https://goframe.org)
+
+接口文档：[https://godoc.org/github.com/gogf/gf](https://godoc.org/github.com/gogf/gf)
 
 # 使用
 ```go
 package main
 
 import (
-    "gitee.com/johng/gf/g"
-    "gitee.com/johng/gf/g/net/ghttp"
+    "github.com/gogf/gf/g"
+    "github.com/gogf/gf/g/net/ghttp"
 )
 
 func main() {
@@ -56,3 +69,18 @@ func main() {
     s.Run()
 }
 ```
+
+[更多..](https://goframe.org/start/index)
+
+
+# 协议
+
+`GF` 使用非常友好的 [MIT](LICENSE) 开源协议进行发布，永久`100%`开源免费。
+
+# 捐赠
+
+如果您喜欢`GF`，要不[给开发者来杯咖啡吧](DONATOR.MD)！
+请在捐赠时备注您的`github`/`gitee`账号名称。
+
+# 感谢
+<a href="https://www.jetbrains.com/?from=GoFrame"><img src="https://goframe.org/images/jetbrains.png" width="100" alt="JetBrains"/></a>

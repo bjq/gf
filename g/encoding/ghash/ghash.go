@@ -1,10 +1,12 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 常用的hash函数
+// Package ghash provides some popular hash functions(uint32/uint64) in go.
+//
+// 常用的hash函数.
 package ghash
 
 

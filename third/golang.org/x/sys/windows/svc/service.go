@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"gitee.com/johng/gf/third/golang.org/x/sys/windows"
+	"github.com/gogf/gf/third/golang.org/x/sys/windows"
 )
 
 // State describes service execution state (Stopped, Running and so on).
@@ -334,8 +334,8 @@ func Run(name string, handler Handler) error {
 	var svcmain uintptr
 	getServiceMain(&svcmain)
 	t := []windows.SERVICE_TABLE_ENTRY{
-		{syscall.StringToUTF16Ptr(s.name), svcmain},
-		{nil, 0},
+		{ServiceName: syscall.StringToUTF16Ptr(s.name), ServiceProc: svcmain},
+		{ServiceName: nil, ServiceProc: 0},
 	}
 
 	goWaitsH = uintptr(s.goWaits.h)

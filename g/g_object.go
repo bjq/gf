@@ -1,59 +1,58 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package g
 
 import (
-    "gitee.com/johng/gf/g/database/gdb"
-    "gitee.com/johng/gf/g/database/gredis"
-    "gitee.com/johng/gf/g/frame/gins"
-    "gitee.com/johng/gf/g/net/ghttp"
-    "gitee.com/johng/gf/g/net/gtcp"
-    "gitee.com/johng/gf/g/net/gudp"
-    "gitee.com/johng/gf/g/os/gview"
-    "gitee.com/johng/gf/g/os/gcfg"
+    "github.com/gogf/gf/g/database/gdb"
+    "github.com/gogf/gf/g/database/gredis"
+    "github.com/gogf/gf/g/frame/gins"
+    "github.com/gogf/gf/g/net/ghttp"
+    "github.com/gogf/gf/g/net/gtcp"
+    "github.com/gogf/gf/g/net/gudp"
+    "github.com/gogf/gf/g/os/gview"
+    "github.com/gogf/gf/g/os/gcfg"
 )
 
-// HTTPServer单例对象
+// Server returns an instance of http server with specified name.
 func Server(name...interface{}) *ghttp.Server {
     return ghttp.GetServer(name...)
 }
 
-// TCPServer单例对象
+// TCPServer returns an instance of tcp server with specified name.
 func TCPServer(name...interface{}) *gtcp.Server {
     return gtcp.GetServer(name...)
 }
 
-// UDPServer单例对象
+// UDPServer returns an instance of udp server with specified name.
 func UDPServer(name...interface{}) *gudp.Server {
     return gudp.GetServer(name...)
 }
 
-// 核心对象：View
+// View returns an instance of template engine object with specified name.
 func View(name...string) *gview.View {
     return gins.View(name...)
 }
 
-// Config配置管理对象
-// 配置文件目录查找依次为：启动参数cfgpath、当前程序运行目录
-func Config(file...string) *gcfg.Config {
-    return gins.Config(file...)
+// Config returns an instance of config object with specified name.
+func Config(name...string) *gcfg.Config {
+    return gins.Config(name...)
 }
 
-// 数据库操作对象，使用了连接池
+// Database returns an instance of database ORM object with specified configuration group name.
 func Database(name...string) gdb.DB {
     return gins.Database(name...)
 }
 
-// (别名)Database
+// Alias of Database. See Database.
 func DB(name...string) gdb.DB {
     return gins.Database(name...)
 }
 
-// Redis操作对象，使用了连接池
+// Redis returns an instance of redis client with specified configuration group name.
 func Redis(name...string) *gredis.Redis {
     return gins.Redis(name...)
 }

@@ -1,8 +1,8 @@
-// Copyright 2017-2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package gudp
 
@@ -10,21 +10,31 @@ import (
     "net"
 )
 
+// Deprecated.
+// 常见的二进制数据校验方式，生成校验结果
+func Checksum(buffer []byte) uint32 {
+	var checksum uint32
+	for _, b := range buffer {
+		checksum += uint32(b)
+	}
+	return checksum
+}
+
 // 创建标准库UDP链接操作对象
 func NewNetConn(raddr string, laddr...string) (*net.UDPConn, error) {
     var err error
-    var rudpaddr, ludpaddr *net.UDPAddr
-    rudpaddr, err = net.ResolveUDPAddr("udp", raddr)
+    var remoteAddr, localAddr *net.UDPAddr
+	remoteAddr, err = net.ResolveUDPAddr("udp", raddr)
     if err != nil {
         return nil, err
     }
     if len(laddr) > 0 {
-        ludpaddr, err = net.ResolveUDPAddr("udp", laddr[0])
+	    localAddr, err = net.ResolveUDPAddr("udp", laddr[0])
         if err != nil {
             return nil, err
         }
     }
-    conn, err := net.DialUDP("udp", ludpaddr, rudpaddr)
+    conn, err := net.DialUDP("udp", localAddr, remoteAddr)
     if err != nil {
         return nil, err
     }

@@ -1,11 +1,12 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 // Package gdb provides ORM features for popular relationship databases.
-// 数据库ORM.
+//
+// 数据库ORM,
 // 默认内置支持MySQL, 其他数据库需要手动import对应的数据库引擎第三方包.
 package gdb
 
@@ -13,20 +14,13 @@ import (
     "database/sql"
     "errors"
     "fmt"
-    "gitee.com/johng/gf/g/container/gring"
-    "gitee.com/johng/gf/g/container/gtype"
-    "gitee.com/johng/gf/g/container/gvar"
-    "gitee.com/johng/gf/g/os/gcache"
-    "gitee.com/johng/gf/g/util/grand"
-    _ "gitee.com/johng/gf/third/github.com/go-sql-driver/mysql"
+    "github.com/gogf/gf/g/container/gmap"
+    "github.com/gogf/gf/g/container/gring"
+    "github.com/gogf/gf/g/container/gtype"
+    "github.com/gogf/gf/g/container/gvar"
+    "github.com/gogf/gf/g/os/gcache"
+    "github.com/gogf/gf/g/util/grand"
     "time"
-)
-
-const (
-	OPTION_INSERT  = 0
-	OPTION_REPLACE = 1
-	OPTION_SAVE    = 2
-	OPTION_IGNORE  = 3
 )
 
 // 数据库操作接口
@@ -43,17 +37,19 @@ type DB interface {
     doQuery(link dbLink, query string, args ...interface{}) (rows *sql.Rows, err error)
     doExec(link dbLink, query string, args ...interface{}) (result sql.Result, err error)
     doPrepare(link dbLink, query string) (*sql.Stmt, error)
-    doInsert(link dbLink, table string, data Map, option int) (result sql.Result, err error)
-    doBatchInsert(link dbLink, table string, list List, batch int, option int) (result sql.Result, err error)
-    doUpdate(link dbLink, table string, data interface{}, condition interface{}, args ...interface{}) (result sql.Result, err error)
-    doDelete(link dbLink, table string, condition interface{}, args ...interface{}) (result sql.Result, err error)
+    doInsert(link dbLink, table string, data interface{}, option int, batch...int) (result sql.Result, err error)
+    doBatchInsert(link dbLink, table string, list interface{}, option int, batch...int) (result sql.Result, err error)
+    doUpdate(link dbLink, table string, data interface{}, condition string, args ...interface{}) (result sql.Result, err error)
+    doDelete(link dbLink, table string, condition string, args ...interface{}) (result sql.Result, err error)
 
 	// 数据库查询
 	GetAll(query string, args ...interface{}) (Result, error)
 	GetOne(query string, args ...interface{}) (Record, error)
 	GetValue(query string, args ...interface{}) (Value, error)
     GetCount(query string, args ...interface{}) (int, error)
-    GetStruct(obj interface{}, query string, args ...interface{}) error
+    GetStruct(objPointer interface{}, query string, args ...interface{}) error
+    GetStructs(objPointerSlice interface{}, query string, args ...interface{}) error
+    GetScan(objPointer interface{}, query string, args ...interface{}) error
 
     // 创建底层数据库master/slave链接对象
     Master() (*sql.DB, error)
@@ -67,14 +63,14 @@ type DB interface {
 	Begin() (*TX, error)
 
 	// 数据表插入/更新/保存操作
-	Insert(table string, data Map) (sql.Result, error)
-	Replace(table string, data Map) (sql.Result, error)
-	Save(table string, data Map) (sql.Result, error)
+	Insert(table string, data interface{}, batch...int) (sql.Result, error)
+	Replace(table string, data interface{}, batch...int) (sql.Result, error)
+	Save(table string, data interface{}, batch...int) (sql.Result, error)
 
 	// 数据表插入/更新/保存操作(批量)
-	BatchInsert(table string, list List, batch int) (sql.Result, error)
-	BatchReplace(table string, list List, batch int) (sql.Result, error)
-	BatchSave(table string, list List, batch int) (sql.Result, error)
+	BatchInsert(table string, list interface{}, batch...int) (sql.Result, error)
+	BatchReplace(table string, list interface{}, batch...int) (sql.Result, error)
+	BatchSave(table string, list interface{}, batch...int) (sql.Result, error)
 
 	// 数据修改/删除
 	Update(table string, data interface{}, condition interface{}, args ...interface{}) (sql.Result, error)
@@ -88,6 +84,7 @@ type DB interface {
     SetDebug(debug bool)
     SetSchema(schema string)
     GetQueriedSqls() []*Sql
+	GetLastSql() *Sql
     PrintQueriedSqls()
     SetMaxIdleConns(n int)
     SetMaxOpenConns(n int)
@@ -98,7 +95,9 @@ type DB interface {
 	getChars() (charLeft string, charRight string)
 	getDebug() bool
     filterFields(table string, data map[string]interface{}) map[string]interface{}
+    convertValue(fieldValue interface{}, fieldType string) interface{}
     getTableFields(table string) (map[string]string, error)
+    rowsToResult(rows *sql.Rows) (Result, error)
     handleSqlBeforeExec(sql string) string
 }
 
@@ -111,15 +110,16 @@ type dbLink interface {
 
 // 数据库链接对象
 type dbBase struct {
-	db               DB            // 数据库对象
-	group            string        // 配置分组名称
-	debug            *gtype.Bool   // (默认关闭)是否开启调试模式，当开启时会启用一些调试特性
-	sqls             *gring.Ring   // (debug=true时有效)已执行的SQL列表
-	cache            *gcache.Cache // 数据库缓存，包括底层连接池对象缓存及查询缓存；需要注意的是，事务查询不支持查询缓存
-    schema           *gtype.String // 手动切换的数据库名称
-	maxIdleConnCount *gtype.Int    // 连接池最大限制的连接数
-    maxOpenConnCount *gtype.Int    // 连接池最大打开的连接数
-    maxConnLifetime  *gtype.Int    // (单位秒)连接对象可重复使用的时间长度
+	db               DB                           // 数据库对象
+	group            string                       // 配置分组名称
+	debug            *gtype.Bool                  // (默认关闭)是否开启调试模式，当开启时会启用一些调试特性
+	sqls             *gring.Ring                  // (debug=true时有效)已执行的SQL列表
+	cache            *gcache.Cache                // 数据库缓存，包括底层连接池对象缓存及查询缓存；需要注意的是，事务查询不支持查询缓存
+    schema           *gtype.String                // 手动切换的数据库名称
+    tables           map[string]map[string]string // 数据库表结构
+	maxIdleConnCount *gtype.Int                   // 连接池最大限制的连接数
+    maxOpenConnCount *gtype.Int                   // 连接池最大打开的连接数
+    maxConnLifetime  *gtype.Int                   // (单位秒)连接对象可重复使用的时间长度
 }
 
 // 执行的SQL对象
@@ -133,7 +133,7 @@ type Sql struct {
 }
 
 // 返回数据表记录值
-type Value = gvar.VarRead
+type Value = *gvar.Var
 
 // 返回数据表记录Map
 type Record map[string]Value
@@ -147,19 +147,35 @@ type Map  = map[string]interface{}
 // 关联数组列表(索引从0开始的数组)，绑定多条记录(使用别名)
 type List = []Map
 
-// 使用默认/指定分组配置进行连接，数据库集群配置项：default
-func New(groupName ...string) (db DB, err error) {
-	group := config.d
-	if len(groupName) > 0 {
-        group = groupName[0]
-	}
-	config.RLock()
-	defer config.RUnlock()
+const (
+    OPTION_INSERT               = 0
+    OPTION_REPLACE              = 1
+    OPTION_SAVE                 = 2
+    OPTION_IGNORE               = 3
+    gDEFAULT_BATCH_NUM          = 10 // Per count for batch insert/replace/save
+    gDEFAULT_CONN_MAX_LIFE_TIME = 30 // Max life time for per connection in pool.
+)
 
-	if len(config.c) < 1 {
+var (
+    // Instance map.
+    instances = gmap.NewStrAnyMap()
+)
+
+// New creates ORM DB object with global configurations.
+// The param <name> specifies the configuration group name,
+// which is DEFAULT_GROUP_NAME in default.
+func New(name ...string) (db DB, err error) {
+	group := configs.defaultGroup
+	if len(name) > 0 {
+        group = name[0]
+	}
+	configs.RLock()
+	defer configs.RUnlock()
+
+	if len(configs.config) < 1 {
 		return nil, errors.New("empty database configuration")
 	}
-	if _, ok := config.c[group]; ok {
+	if _, ok := configs.config[group]; ok {
 	    if node, err := getConfigNodeByGroup(group, true); err == nil {
 	        base := &dbBase {
                 group            : group,
@@ -168,7 +184,7 @@ func New(groupName ...string) (db DB, err error) {
                 schema           : gtype.NewString(),
                 maxIdleConnCount : gtype.NewInt(),
                 maxOpenConnCount : gtype.NewInt(),
-                maxConnLifetime  : gtype.NewInt(),
+                maxConnLifetime  : gtype.NewInt(gDEFAULT_CONN_MAX_LIFE_TIME),
             }
             switch node.Type {
                 case "mysql":
@@ -193,9 +209,27 @@ func New(groupName ...string) (db DB, err error) {
 	}
 }
 
+// Instance returns an instance for DB operations.
+// The param <name> specifies the configuration group name,
+// which is DEFAULT_GROUP_NAME in default.
+func Instance(name ...string) (db DB, err error) {
+    group := configs.defaultGroup
+    if len(name) > 0 {
+        group = name[0]
+    }
+    v := instances.GetOrSetFuncLock(group, func() interface{} {
+        db, err = New(group)
+        return db
+    })
+    if v != nil {
+        return v.(DB), nil
+    }
+    return
+}
+
 // 获取指定数据库角色的一个配置项，内部根据权重计算负载均衡
 func getConfigNodeByGroup(group string, master bool) (*ConfigNode, error) {
-    if list, ok := config.c[group]; ok {
+    if list, ok := configs.config[group]; ok {
         // 将master, slave集群列表拆分出来
         masterList := make(ConfigGroup, 0)
         slaveList  := make(ConfigGroup, 0)
@@ -308,17 +342,17 @@ func (bs *dbBase) getSqlDb(master bool) (sqlDb *sql.DB, err error) {
     return
 }
 
-// 切换操作的数据库(注意该切换是全局的)
+// 切换当前数据库对象操作的数据库。
 func (bs *dbBase) SetSchema(schema string) {
     bs.schema.Set(schema)
 }
 
-// 创建底层数据库master链接对象
+// 创建底层数据库master链接对象。
 func (bs *dbBase) Master() (*sql.DB, error) {
 	return bs.getSqlDb(true)
 }
 
-// 创建底层数据库slave链接对象
+// 创建底层数据库slave链接对象。
 func (bs *dbBase) Slave() (*sql.DB, error) {
     return bs.getSqlDb(false)
 }

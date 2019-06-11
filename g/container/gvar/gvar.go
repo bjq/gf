@@ -1,30 +1,31 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018-2019 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// Package gvar provides a universal variable type.
-// 通用动态变量.
+// Package gvar provides an universal variable type, like generics.
 package gvar
 
 import (
-    "gitee.com/johng/gf/g/container/gtype"
-    "gitee.com/johng/gf/g/os/gtime"
-    "gitee.com/johng/gf/g/util/gconv"
+    "github.com/gogf/gf/g/container/gtype"
+    "github.com/gogf/gf/g/os/gtime"
+    "github.com/gogf/gf/g/util/gconv"
     "time"
 )
 
 type Var struct {
-    value interface{} // 变量值
-    safe  bool        // 当为true时,value为 *gtype.Interface 类型
+    value interface{} // Underlying value.
+    safe  bool        // Concurrent safe or not.
 }
 
-// 创建一个动态变量，value参数可以为nil
-func New(value interface{}, safe...bool) *Var {
+// New returns a new Var with given <value>.
+// The param <unsafe> used to specify whether using Var in un-concurrent-safety,
+// which is false in default, means concurrent-safe.
+func New(value interface{}, unsafe...bool) *Var {
     v := &Var{}
-    if len(safe) > 0 && safe[0] {
-        v.safe  = safe[0]
+    if len(unsafe) == 0 || !unsafe[0] {
+        v.safe  = true
         v.value = gtype.NewInterface(value)
     } else {
         v.value = value
@@ -32,16 +33,7 @@ func New(value interface{}, safe...bool) *Var {
     return v
 }
 
-// 创建一个只读动态变量，value参数可以为nil
-func NewRead(value interface{}, safe...bool) VarRead {
-    return VarRead(New(value, safe...))
-}
-
-// 返回动态变量的只读接口
-func (v *Var) ReadOnly() VarRead {
-    return VarRead(v)
-}
-
+// Set sets <value> to <v>, and returns the old value.
 func (v *Var) Set(value interface{}) (old interface{}) {
     if v.safe {
         old = v.value.(*gtype.Interface).Set(value)
@@ -52,6 +44,7 @@ func (v *Var) Set(value interface{}) (old interface{}) {
     return
 }
 
+// Val returns the current value of <v>.
 func (v *Var) Val() interface{} {
     if v.safe {
         return v.value.(*gtype.Interface).Val()
@@ -60,9 +53,36 @@ func (v *Var) Val() interface{} {
     }
 }
 
-// Val() 别名
+// See Val().
 func (v *Var) Interface() interface{} {
     return v.Val()
+}
+
+// Time converts and returns <v> as time.Time.
+// The param <format> specifies the format of the time string using gtime,
+// eg: Y-m-d H:i:s.
+func (v *Var) Time(format...string) time.Time {
+    return gconv.Time(v.Val(), format...)
+}
+
+// TimeDuration converts and returns <v> as time.Duration.
+// If value of <v> is string, then it uses time.ParseDuration for conversion.
+func (v *Var) Duration() time.Duration {
+    return gconv.Duration(v.Val())
+}
+
+// GTime converts and returns <v> as *gtime.Time.
+// The param <format> specifies the format of the time string using gtime,
+// eg: Y-m-d H:i:s.
+func (v *Var) GTime(format...string) *gtime.Time {
+    return gconv.GTime(v.Val(), format...)
+}
+
+// Struct maps value of <v> to <objPointer>.
+// The param <objPointer> should be a pointer to a struct instance.
+// The param <mapping> is used to specify the key-to-attribute mapping rules.
+func (v *Var) Struct(pointer interface{}, mapping...map[string]string) error {
+    return gconv.Struct(v.Val(), pointer, mapping...)
 }
 
 func (v *Var) IsNil()          bool            { return v.Val() == nil }
@@ -89,13 +109,3 @@ func (v *Var) Ints()           []int           { return gconv.Ints(v.Val()) }
 func (v *Var) Floats()         []float64       { return gconv.Floats(v.Val()) }
 func (v *Var) Strings()        []string        { return gconv.Strings(v.Val()) }
 func (v *Var) Interfaces()     []interface{}   { return gconv.Interfaces(v.Val()) }
-
-func (v *Var) Time(format...string) time.Time       { return gconv.Time(v.Val(), format...) }
-func (v *Var) TimeDuration()        time.Duration   { return gconv.TimeDuration(v.Val()) }
-
-func (v *Var) GTime(format...string) *gtime.Time    { return gconv.GTime(v.Val(), format...) }
-
-// 将变量转换为对象，注意 objPointer 参数必须为struct指针
-func (v *Var) Struct(objPointer interface{}, attrMapping...map[string]string) error {
-    return gconv.Struct(v.Val(), objPointer, attrMapping...)
-}

@@ -1,13 +1,15 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
 package gdb
 
 import (
-    "gitee.com/johng/gf/g/encoding/gparser"
+    "fmt"
+    "github.com/gogf/gf/g/encoding/gparser"
+    "reflect"
 )
 
 // 将结果集转换为JSON字符串
@@ -16,7 +18,7 @@ func (r Result) ToJson() string {
     return string(content)
 }
 
-// 将结果集转换为JSON字符串
+// 将结果集转换为XML字符串
 func (r Result) ToXml(rootTag...string) string {
     content, _ := gparser.VarToXml(r.ToList(), rootTag...)
     return string(content)
@@ -95,4 +97,31 @@ func (r Result) ToUintRecord(key string) map[uint]Record {
         }
     }
     return m
+}
+
+// 将结果列表转换为指定对象的slice。
+func (r Result) ToStructs(objPointerSlice interface{}) error {
+    l := len(r)
+    if l == 0 {
+        return nil
+    }
+    t := reflect.TypeOf(objPointerSlice)
+    if t.Kind() != reflect.Ptr {
+        return fmt.Errorf("params should be type of pointer, but got: %v", t.Kind())
+    }
+    a := reflect.MakeSlice(t.Elem(), l, l)
+    itemType := a.Index(0).Type()
+    for i := 0; i < l; i++ {
+        if itemType.Kind() == reflect.Ptr {
+            e := reflect.New(itemType.Elem()).Elem()
+            r[i].ToStruct(e)
+            a.Index(i).Set(e.Addr())
+        } else {
+            e := reflect.New(itemType).Elem()
+            r[i].ToStruct(e)
+            a.Index(i).Set(e)
+        }
+    }
+    reflect.ValueOf(objPointerSlice).Elem().Set(a)
+    return nil
 }

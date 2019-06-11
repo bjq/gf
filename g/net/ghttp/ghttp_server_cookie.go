@@ -1,16 +1,16 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 //
 // HTTP Cookie管理对象，
-// 由于Cookie是和HTTP请求挂钩的，因此被包含到 ghttp 包中进行管理
+// 由于Cookie是和HTTP请求挂钩的，因此被包含到 ghttp 包中进行管理。
 
 package ghttp
 
 import (
-    "gitee.com/johng/gf/g/os/gtime"
+    "github.com/gogf/gf/g/os/gtime"
     "net/http"
     "time"
 )
@@ -42,6 +42,7 @@ func GetCookie(r *Request) *Cookie {
     }
     return &Cookie {
         request : r,
+        server  : r.Server,
     }
 }
 
@@ -52,7 +53,6 @@ func (c *Cookie) init() {
         c.path     = c.request.Server.GetCookiePath()
         c.domain   = c.request.Server.GetCookieDomain()
         c.maxage   = c.request.Server.GetCookieMaxAge()
-        c.server   = c.request.Server
         c.response = c.request.Response
         // 如果没有设置COOKIE有效域名，那么设置HOST为默认有效域名
         if c.domain == "" {
@@ -87,6 +87,14 @@ func (c *Cookie) SessionId() string {
     return id
 }
 
+// 获取SessionId，不存在时则创建
+func (c *Cookie) MakeSessionId() string {
+    c.init()
+    id := makeSessionId()
+    c.SetSessionId(id)
+    return id
+}
+
 // 判断Cookie中是否存在制定键名(并且没有过期)
 func (c *Cookie) Contains(key string) bool {
     c.init()
@@ -115,32 +123,46 @@ func (c *Cookie) SetCookie(key, value, domain, path string, maxAge int, httpOnly
     }
 }
 
+// 获得客户端提交的SessionId
+func (c *Cookie) GetSessionId() string {
+    return c.Get(c.server.GetSessionIdName())
+}
+
 // 设置SessionId
 func (c *Cookie) SetSessionId(id string) {
     c.Set(c.server.GetSessionIdName(), id)
 }
 
 // 查询cookie
-func (c *Cookie) Get(key string) string {
+func (c *Cookie) Get(key string, def...string) string {
     c.init()
     if r, ok := c.data[key]; ok {
         if r.expire >= 0 {
             return r.value
-        } else {
-            return ""
         }
+    }
+    if len(def) > 0 {
+    	return def[0]
     }
     return ""
 }
 
+// 删除COOKIE，使用默认的domain&path
+func (c *Cookie) Remove(key string) {
+    c.SetCookie(key, "", c.domain, c.path, -86400)
+}
+
 // 标记该cookie在对应的域名和路径失效
 // 删除cookie的重点是需要通知浏览器客户端cookie已过期
-func (c *Cookie) Remove(key, domain, path string) {
+func (c *Cookie) RemoveCookie(key, domain, path string) {
     c.SetCookie(key, "", domain, path, -86400)
 }
 
 // 输出到客户端
 func (c *Cookie) Output() {
+    if len(c.data) == 0 {
+        return
+    }
     for k, v := range c.data {
         // 只有 expire != 0 的才是服务端在本次请求中设置的cookie
         if v.expire == 0 {

@@ -1,8 +1,8 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // 路由控制基本方法.
 
 package ghttp
@@ -11,33 +11,37 @@ import (
     "container/list"
     "errors"
     "fmt"
-    "gitee.com/johng/gf/g/os/glog"
-    "gitee.com/johng/gf/g/util/gregex"
-    "gitee.com/johng/gf/g/util/gstr"
+    "github.com/gogf/gf/g/os/glog"
+    "github.com/gogf/gf/g/text/gregex"
+    "github.com/gogf/gf/g/text/gstr"
     "runtime"
     "strings"
 )
 
 
 // 解析pattern
-func (s *Server)parsePattern(pattern string) (domain, method, uri string, err error) {
-    uri    = pattern
+func (s *Server)parsePattern(pattern string) (domain, method, path string, err error) {
+    path   = strings.TrimSpace(pattern)
     domain = gDEFAULT_DOMAIN
     method = gDEFAULT_METHOD
     if array, err := gregex.MatchString(`([a-zA-Z]+):(.+)`, pattern); len(array) > 1 && err == nil {
-        method = array[1]
-        uri    = array[2]
+        path = strings.TrimSpace(array[2])
+        if v := strings.TrimSpace(array[1]); v != "" {
+            method = v
+        }
     }
-    if array, err := gregex.MatchString(`(.+)@([\w\.\-]+)`, uri); len(array) > 1 && err == nil {
-        uri     = array[1]
-        domain  = array[2]
+    if array, err := gregex.MatchString(`(.+)@([\w\.\-]+)`, path); len(array) > 1 && err == nil {
+        path = strings.TrimSpace(array[1])
+        if v := strings.TrimSpace(array[2]); v != "" {
+            domain = v
+        }
     }
-    if uri == "" {
-        err = errors.New("invalid pattern")
+    if path == "" {
+        err = errors.New("invalid pattern: URI should not be empty")
     }
     // 去掉末尾的"/"符号，与路由匹配时处理一致
-    if uri != "/" {
-        uri = strings.TrimRight(uri, "/")
+    if path != "/" {
+        path = strings.TrimRight(path, "/")
     }
     return
 }
@@ -56,10 +60,11 @@ func (s *Server) getHandlerRegisterCallerLine(handler *handlerItem) string {
 
 // 路由注册处理方法。
 // 如果带有hook参数，表示是回调注册方法; 否则为普通路由执行方法。
-func (s *Server) setHandler(pattern string, handler *handlerItem, hook ... string) (resultErr error) {
+func (s *Server) setHandler(pattern string, handler *handlerItem, hook ... string) {
     // Web Server正常运行时无法动态注册路由方法
     if s.Status() == SERVER_STATUS_RUNNING {
-        return errors.New("cannot bind handler while server running")
+        glog.Error("cannot bind handler while server running")
+        return
     }
     var hookName string
     if len(hook) > 0 {
@@ -67,29 +72,22 @@ func (s *Server) setHandler(pattern string, handler *handlerItem, hook ... strin
     }
     domain, method, uri, err := s.parsePattern(pattern)
     if err != nil {
-        return errors.New("invalid pattern")
+        glog.Error("invalid pattern:", pattern, err)
+        return
+    }
+    if len(uri) == 0 || uri[0] != '/' {
+        glog.Error("invalid pattern:", pattern, "URI should lead with '/'")
+        return
     }
     // 注册地址记录及重复注册判断
     regkey := s.handlerKey(hookName, method, uri, domain)
     caller := s.getHandlerRegisterCallerLine(handler)
     if len(hook) == 0 {
         if item, ok := s.routesMap[regkey]; ok {
-            s := fmt.Sprintf(`duplicated route registry "%s", already registered in %s`, pattern, item[0].file)
-            glog.Errorfln(s)
-            return errors.New(s)
+            glog.Errorf(`duplicated route registry "%s", already registered at %s`, pattern, item[0].file)
+            return
         }
     }
-    defer func() {
-        if resultErr == nil {
-            if _, ok := s.routesMap[regkey]; !ok {
-                s.routesMap[regkey] = make([]registeredRouteItem, 0)
-            }
-            s.routesMap[regkey] = append(s.routesMap[regkey], registeredRouteItem {
-                file    : caller,
-                handler : handler,
-            })
-        }
-    }()
 
     // 路由对象
     handler.router = &Router {
@@ -189,9 +187,15 @@ func (s *Server) setHandler(pattern string, handler *handlerItem, hook ... strin
             l.PushBack(handler)
         }
     }
-    //gutil.Dump(s.serveTree)
-    //gutil.Dump(s.hooksTree)
-    return nil
+    // gutil.Dump(s.serveTree)
+    // gutil.Dump(s.hooksTree)
+    if _, ok := s.routesMap[regkey]; !ok {
+        s.routesMap[regkey] = make([]registeredRouteItem, 0)
+    }
+    s.routesMap[regkey] = append(s.routesMap[regkey], registeredRouteItem {
+        file    : caller,
+        handler : handler,
+    })
 }
 
 // 对比两个handlerItem的优先级，需要非常注意的是，注意新老对比项的参数先后顺序。

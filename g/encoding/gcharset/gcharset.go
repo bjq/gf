@@ -1,17 +1,19 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 // @author wenzi1
 // @date   20180604
 
-// 字符集转换方法.
+// Package gcharset provides converting string to requested character encoding.
+//
+// 字符集转换方法,
 // 使用mahonia实现的字符集转换方法，支持的字符集包括常见的utf8/UTF-16/UTF-16LE/macintosh/big5/gbk/gb18030,支持的全量字符集可以参考mahonia包
 package gcharset
 
 import (
-	"gitee.com/johng/gf/third/github.com/axgle/mahonia"
+	"github.com/gogf/gf/third/github.com/axgle/mahonia"
 	"errors"
 	"fmt"
 )
@@ -49,5 +51,5 @@ func ToUTF8(charset string, src string) (dst string, err error) {
 
 // UTF8转指定字符集
 func UTF8To(charset string, src string) (dst string, err error) {
-	return  Convert(charset, "UTF-8", src)
+	return Convert(charset, "UTF-8", src)
 }

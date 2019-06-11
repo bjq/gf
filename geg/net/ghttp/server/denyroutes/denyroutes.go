@@ -1,12 +1,12 @@
 package main
 
-import "gitee.com/johng/gf/g"
+import "github.com/gogf/gf/g"
 
 func main() {
-    s := g.Server()
-    s.SetDenyRoutes([]string{
-        "/config*",
-    })
-    s.SetPort(8299)
-    s.Run()
+	s := g.Server()
+	s.SetDenyRoutes([]string{
+		"/config*",
+	})
+	s.SetPort(8299)
+	s.Run()
 }

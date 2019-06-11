@@ -1,28 +1,27 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2019 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 文件指针池
+// Package gfpool provides io-reusable pool for file pointer.
 package gfpool
 
 import (
     "fmt"
-    "gitee.com/johng/gf/g/container/gmap"
-    "gitee.com/johng/gf/g/container/gpool"
-    "gitee.com/johng/gf/g/container/gtype"
-    "gitee.com/johng/gf/g/os/gfsnotify"
+    "github.com/gogf/gf/g/container/gmap"
+    "github.com/gogf/gf/g/container/gpool"
+    "github.com/gogf/gf/g/container/gtype"
+    "github.com/gogf/gf/g/os/gfsnotify"
     "os"
     "sync"
 )
 
-// 文件指针池
+// File pointer pool.
 type Pool struct {
-    id         *gtype.Int        // 指针池ID，用以识别指针池是否重建
+    id         *gtype.Int        // 指针池ID，用以识别指针池是否需要重建
     pool       *gpool.Pool       // 底层对象池
-    inited     *gtype.Bool       // 是否初始化(在执行第一次File方法后初始化，主要用于监听的添加，但是只能添加一次)
-    closeChan  chan struct{}     // 关闭事件
+    inited     *gtype.Bool       // 是否初始化(在执行第一次执行File方法后初始化，主要用于文件监听的添加，但是只能添加一次)
     expire     int               // 过期时间
 }
 
@@ -37,8 +36,11 @@ type File struct {
     path   string           // 绝对路径
 }
 
-// 全局指针池，expire < 0表示不过期，expire = 0表示使用完立即回收，expire > 0表示超时回收
-var pools = gmap.NewStringInterfaceMap()
+
+var (
+	// 全局文件指针池Map, 不过期
+	pools = gmap.NewStrAnyMap()
+)
 
 // 获得文件对象，并自动创建指针池(过期时间单位：毫秒)
 func Open(path string, flag int, perm os.FileMode, expire...int) (file *File, err error) {
@@ -53,22 +55,23 @@ func Open(path string, flag int, perm os.FileMode, expire...int) (file *File, er
     return pool.File()
 }
 
+// Deprecated.
+// See Open.
 func OpenFile(path string, flag int, perm os.FileMode, expire...int) (file *File, err error) {
     return Open(path, flag, perm, expire...)
 }
 
-// 创建一个文件指针池，expire = 0表示不过期，expire < 0表示使用完立即回收，expire > 0表示超时回收，默认值为0不过期
-// 过期时间单位：毫秒
+// 创建一个文件指针池，expire = 0表示不过期，expire < 0表示使用完立即回收，expire > 0表示超时回收，默认值为0表示不过期。
+// 注意过期时间单位为：毫秒。
 func New(path string, flag int, perm os.FileMode, expire...int) *Pool {
     fpExpire := 0
     if len(expire) > 0 {
         fpExpire = expire[0]
     }
     p := &Pool {
-        id        : gtype.NewInt(),
-        expire    : fpExpire,
-        inited    : gtype.NewBool(),
-        closeChan : make(chan struct{}),
+        id     : gtype.NewInt(),
+        expire : fpExpire,
+        inited : gtype.NewBool(),
     }
     p.pool = newFilePool(p, path, flag, perm, fpExpire)
     return p
@@ -89,8 +92,7 @@ func newFilePool(p *Pool, path string, flag int, perm os.FileMode, expire int) *
             perm   : perm,
             path   : path,
         }, nil
-    })
-    pool.SetExpireFunc(func(i interface{}) {
+    }, func(i interface{}) {
         i.(*File).File.Close()
     })
     return pool
@@ -131,7 +133,9 @@ func (p *Pool) File() (*File, error) {
                return nil, err
            }
         }
-        if !p.inited.Set(true) {
+        // 优先使用 !p.inited.Val() 原子读取操作判断，保证判断操作的效率；
+        // p.inited.Set(true) == false 使用原子写入操作，保证该操作的原子性；
+        if !p.inited.Val() && p.inited.Set(true) == false {
             gfsnotify.Add(f.path, func(event *gfsnotify.Event) {
                 // 如果文件被删除或者重命名，立即重建指针池
                 if event.IsRemove() || event.IsRename() {
@@ -149,11 +153,9 @@ func (p *Pool) File() (*File, error) {
     }
 }
 
-// 关闭指针池(返回error是标准库io.ReadWriteCloser接口实现)
-func (p *Pool) Close() error {
-    close(p.closeChan)
+// 关闭指针池
+func (p *Pool) Close() {
     p.pool.Close()
-    return nil
 }
 
 // 获得底层文件指针(返回error是标准库io.ReadWriteCloser接口实现)

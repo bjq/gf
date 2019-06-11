@@ -1,18 +1,17 @@
 package main
 
 import (
-    "gitee.com/johng/gf/g/container/garray"
-    "gitee.com/johng/gf/g"
+	"github.com/gogf/gf/g"
+	"github.com/gogf/gf/g/container/garray"
 )
 
+func main() {
+	a := garray.NewIntArray()
+	a.Append(1, 2, 3)
 
-func main () {
-    a := garray.NewIntArray(0, 0)
-    a.Append(1, 2, 3)
+	v := a.Slice()
+	v[0] = 4
 
-    v   := a.Slice()
-    v[0] = 4
-
-    g.Dump(a.Slice())
-    g.Dump(v)
+	g.Dump(a.Slice())
+	g.Dump(v)
 }

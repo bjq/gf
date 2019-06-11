@@ -1,67 +1,81 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// Package gqueue provides a dynamic/static concurrent-safe(alternative) queue.
-// 并发安全的动态队列.
-// 特点：
-// 1、动态队列初始化速度快；
-// 2、动态的队列大小(不限大小)；
-// 3、取数据时如果队列为空那么会阻塞等待；
+// Package gqueue provides a dynamic/static concurrent-safe queue.
+//
+// Features:
+//
+// 1. FIFO queue(data -> list -> chan);
+//
+// 2. Fast creation and initialization;
+//
+// 3. Support dynamic queue size(unlimited queue size);
+//
+// 4. Blocking when reading data from queue;
+//
 package gqueue
 
 import (
-    "gitee.com/johng/gf/g/container/glist"
+    "github.com/gogf/gf/g/container/glist"
     "math"
 )
 
-// 0、这是一个先进先出的队列(chan <-- list)；
-// 1、当创建Queue对象时限定大小，那么等同于一个同步的chan并发安全队列；
-// 2、不限制大小时，list链表用以存储数据，临时chan负责为客户端读取数据，当从chan获取数据时，list往chan中不停补充数据；
-// 3、由于功能主体是chan，那么操作仍然像chan那样具有阻塞效果；
 type Queue struct {
-    limit     int              // 队列限制大小
-    queue     chan interface{} // 用于队列写入限制
-    list      *glist.List      // 数据链表
-    events    chan struct{}    // 通知chan，当不限制队列大小时的写入事件通知
-    closeChan chan struct{}    // 关闭channel
+    limit     int              // Limit for queue size.
+    list      *glist.List      // Underlying list structure for data maintaining.
+    events    chan struct{}    // Events for data writing.
+    closed    chan struct{}    // Events for queue closing.
+    C         chan interface{} // Underlying channel for data reading.
 }
 
 const (
-    // 动态队列缓冲区大小
-    gQUEUE_SIZE = 10000
+    // Size for queue buffer.
+    gDEFAULT_QUEUE_SIZE = 10000
 )
 
-// 队列大小为非必须参数，默认不限制
+// New returns an empty queue object.
+// Optional parameter <limit> is used to limit the size of the queue, which is unlimited in default.
+// When <limit> is given, the queue will be static and high performance which is comparable with stdlib channel.
 func New(limit...int) *Queue {
     q := &Queue {
-        closeChan : make(chan struct{}, 0),
+        closed : make(chan struct{}, 0),
     }
     if len(limit) > 0 {
         q.limit  = limit[0]
-        q.queue  = make(chan interface{}, limit[0])
+        q.C      = make(chan interface{}, limit[0])
     } else {
         q.list   = glist.New()
-        q.queue  = make(chan interface{}, gQUEUE_SIZE)
         q.events = make(chan struct{}, math.MaxInt32)
+        q.C      = make(chan interface{}, gDEFAULT_QUEUE_SIZE)
         go q.startAsyncLoop()
     }
     return q
 }
 
-// 异步list->chan同步队列
+// startAsyncLoop starts an asynchronous goroutine,
+// which handles the data synchronization from list <q.list> to channel <q.C>.
 func (q *Queue) startAsyncLoop() {
     for {
         select {
-            case <- q.closeChan:
+            case <- q.closed:
                 return
             case <- q.events:
-                // 循环读取链表，直到为空才跳出
                 for {
-                    if v := q.list.PopFront(); v != nil {
-                        q.queue <- v
+                    if length := q.list.Len(); length > 0 {
+                        array := make([]interface{}, length)
+                        for i := 0; i < length; i++ {
+                            if e := q.list.Front(); e != nil {
+                                array[i] = q.list.Remove(e)
+                            } else {
+                                break
+                            }
+                        }
+                        for _, v := range array {
+                           q.C <- v
+                        }
                     } else {
                         break
                     }
@@ -70,34 +84,35 @@ func (q *Queue) startAsyncLoop() {
     }
 }
 
-// 将数据压入队列, 队头
+// Push pushes the data <v> into the queue.
+// Note that it would panics if Push is called after the queue is closed.
 func (q *Queue) Push(v interface{}) {
     if q.limit > 0 {
-        q.queue <- v
+        q.C <- v
     } else {
         q.list.PushBack(v)
-        if len(q.events) == 0 {
-            q.events <- struct{}{}
-        }
+        q.events <- struct{}{}
     }
 }
 
-// 从队头先进先出地从队列取出一项数据
+// Pop pops an item from the queue in FIFO way.
+// Note that it would return nil immediately if Pop is called after the queue is closed.
 func (q *Queue) Pop() interface{} {
-    return <- q.queue
+    return <- q.C
 }
 
-// 关闭队列(通知所有通过Pop*阻塞的协程退出)
+// Close closes the queue.
+// Notice: It would notify all goroutines return immediately,
+// which are being blocked reading using Pop method.
 func (q *Queue) Close() {
-    q.list.RemoveAll()
-    close(q.queue)
+    close(q.C)
     close(q.events)
-    close(q.closeChan)
+    close(q.closed)
 }
 
-// 获取当前队列大小
+// Size returns the length of the queue.
 func (q *Queue) Size() int {
-    return len(q.queue) + q.list.Len()
+    return len(q.C) + q.list.Len()
 }
 
 

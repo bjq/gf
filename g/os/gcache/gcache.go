@@ -1,10 +1,10 @@
-// Copyright 2017-2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017-2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
-// 并发安全的单进程高速缓存.
+// Package gcache provides high performance and concurrent-safe in-memory cache for process.
 package gcache
 
 // 全局缓存管理对象
@@ -22,8 +22,8 @@ func SetIfNotExist(key interface{}, value interface{}, expire int) bool {
 }
 
 // (使用全局KV缓存对象)批量设置kv缓存键值对，过期时间单位为**毫秒**
-func BatchSet(data map[interface{}]interface{}, expire int)  {
-    cache.BatchSet(data, expire)
+func Sets(data map[interface{}]interface{}, expire int)  {
+    cache.Sets(data, expire)
 }
 
 // (使用全局KV缓存对象)获取指定键名的值
@@ -57,8 +57,8 @@ func Remove(key interface{}) interface{} {
 }
 
 // (使用全局KV缓存对象)批量删除指定键值对
-func BatchRemove(keys []interface{}) {
-    cache.BatchRemove(keys)
+func Removes(keys []interface{}) {
+    cache.Removes(keys)
 }
 
 // 返回缓存的所有数据键值对(不包含已过期数据)

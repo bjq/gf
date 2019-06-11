@@ -1,12 +1,18 @@
 package main
 
 import (
-    "fmt"
-    "gitee.com/johng/gf/g/net/ghttp"
+	"crypto/tls"
+	"fmt"
+	"github.com/gogf/gf/g/net/ghttp"
+	"net/http"
 )
 
 func main() {
-    c    := ghttp.NewClient()
-    r, _ := c.Get("http://baidu.com")
-    fmt.Println(r.StatusCode)
+	c := ghttp.NewClient()
+	c.Transport = &http.Transport{
+		TLSClientConfig : &tls.Config{ InsecureSkipVerify: true},
+	}
+	r, e := c.Clone().Get("https://127.0.0.1:8199")
+	fmt.Println(e)
+	fmt.Println(r.StatusCode)
 }

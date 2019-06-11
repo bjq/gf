@@ -1,37 +1,45 @@
 # GoFrame 
-<img align="right" height="150px" src="https://gfer.me/cover.png">
+<div align=center>
+<img src="https://goframe.org/logo.png" width="100"/>
 
-[![Go Doc](https://godoc.org/github.com/johng-cn/gf?status.svg)](https://godoc.org/github.com/johng-cn/gf) 
-[![Build Status](https://travis-ci.org/johng-cn/gf.svg?branch=master)](https://travis-ci.org/johng-cn/gf) 
-[![Go Report](https://goreportcard.com/badge/github.com/johng-cn/gf)](https://goreportcard.com/report/github.com/johng-cn/gf) 
-[![Documents](https://img.shields.io/badge/docs-100%25-green.svg)](https://gfer.me) 
-[![License](https://img.shields.io/github/license/johng-cn/gf.svg?style=flat)](https://github.com/johng-cn/gf)
-[![Language](https://img.shields.io/badge/language-go-blue.svg)](https://github.com/johng-cn/gf)
-[![Release](https://img.shields.io/github/release/johng-cn/gf.svg?style=flat)](https://github.com/johng-cn/gf/releases)
+[![Go Doc](https://godoc.org/github.com/gogf/gf?status.svg)](https://godoc.org/github.com/gogf/gf) 
+[![Build Status](https://travis-ci.org/gogf/gf.svg?branch=master)](https://travis-ci.org/gogf/gf) 
+[![Go Report](https://goreportcard.com/badge/github.com/gogf/gf)](https://goreportcard.com/report/github.com/gogf/gf) 
+[![Code Coverage](https://codecov.io/gh/gogf/gf/branch/master/graph/badge.svg)](https://codecov.io/gh/gogf/gf/branch/master)
+[![Production Ready](https://img.shields.io/badge/production-ready-blue.svg)](https://github.com/gogf/gf)
+[![License](https://img.shields.io/github/license/gogf/gf.svg?style=flat)](https://github.com/gogf/gf)
+
+</div>
 
 <!--
-[![Code Coverage](https://codecov.io/gh/johng-cn/gf/branch/master/graph/badge.svg)](https://codecov.io/gh/johng-cn/gf)
-[![Code Helper](https://www.codetriage.com/johng-cn/gf/badges/users.svg)](https://www.codetriage.com/johng-cn/gf) 
---> 
+GoFrame is a modular, loose-coupled, production-ready and most-powerful application development framework of golang. Providing a series of core components and dozens of practical modules, such as: cache, logging, containers, timer, validator, database orm, etc. Supporting web server integrated with router, cookie, session, logger, configure, template, https, hooks, rewrites and many more features. 
+-->
 
-`GF(GoFrame)` is a modular, lightweight, loosely coupled, high performance application development framework written in Go. Supporting graceful server, hot updates, multi-domain, multi-port, multi-service, HTTP/HTTPS, dynamic/hook routing and many more features. Providing a series of core components and dozens of practical modules.
+`GF(GoFrame)` is a modular, loose-coupled, production-ready and most-powerful application development framework of golang. Providing a series of core components and dozens of practical modules, such as: memcache, configure, validator, logging, array/queue/set/map containers, timer/timing tasks, file/memory lock, object pool, database ORM, etc. Supporting web server integrated with router, cookie, session, logger, template, https, hooks, rewrites and many more features. 
+
 
 # Installation
 ```
-go get -u gitee.com/johng/gf
+go get -u github.com/gogf/gf
 ```
+or use `go.mod`:
+```
+require github.com/gogf/gf latest
+```
+
 # Limitation
 ```
-golang version >= 1.9.2
+golang version >= 1.10
 ```
 
 # Documentation
 
-* [中文文档](https://gfer.me/)
+* [APIDoc](https://godoc.org/github.com/gogf/gf)
+* [中文文档](https://goframe.org)
 
 # Architecture
 <div align=center>
-<img src="https://gfer.me/images/arch.png"/>
+<img src="https://goframe.org/images/arch.png"/>
 </div>
 
 # Quick Start
@@ -40,8 +48,8 @@ golang version >= 1.9.2
 package main
 
 import (
-    "gitee.com/johng/gf/g"
-    "gitee.com/johng/gf/g/net/ghttp"
+    "github.com/gogf/gf/g"
+    "github.com/gogf/gf/g/net/ghttp"
 )
 
 func main() {
@@ -53,6 +61,26 @@ func main() {
 }
 ```
 
+[View More..](https://goframe.org/start/index)
+
+
 # License
 
-GF is licensed under the [MIT License](LICENSE), 100% free and open-source.
+`GF` is licensed under the [MIT License](LICENSE), 100% free and open-source, forever.
+
+# Donators
+
+We currently accept donation by Alipay/WechatPay, please note your github/gitee account in your payment bill. If you like `GF`, why not [buy developer a cup of coffee](DONATOR.MD)?
+
+# Thanks
+<a href="https://www.jetbrains.com/?from=GoFrame"><img src="https://goframe.org/images/jetbrains.png" width="100" alt="JetBrains"/></a>
+
+
+<!--
+# Sponsor
+We appreciate any kind of sponsorship for `GF` development. If you've got some interested, please contact john@goframe.org.
+-->
+
+
+
+

@@ -1,8 +1,8 @@
-// Copyright 2017 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2017 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 /*
 @author wenzi1<liyz23@qq.com>
 @date 20181026
@@ -11,12 +11,13 @@
     2.不支持save/replace方法，可以调用这2个方法估计会报错，还没测试过,(应该是可以通过oracle的merge来实现这2个功能的，还没仔细研究)
     3.不支持LastInsertId方法
 */
+
 package gdb
 
 import (
 	"database/sql"
 	"fmt"
-	"gitee.com/johng/gf/g/util/gregex"
+	"github.com/gogf/gf/g/text/gregex"
 	"strconv"
 	"strings"
 )
@@ -29,8 +30,8 @@ type dbOracle struct {
 // 创建SQL操作对象
 func (db *dbOracle) Open(config *ConfigNode) (*sql.DB, error) {
 	var source string
-	if config.Linkinfo != "" {
-		source = config.Linkinfo
+	if config.LinkInfo != "" {
+		source = config.LinkInfo
 	} else {
 		source = fmt.Sprintf("%s/%s@%s", config.User, config.Pass, config.Name)
 	}
@@ -42,7 +43,7 @@ func (db *dbOracle) Open(config *ConfigNode) (*sql.DB, error) {
 }
 
 // 获得关键字操作符
-func (db *dbOracle) getChars () (charLeft string, charRight string) {
+func (db *dbOracle) getChars() (charLeft string, charRight string) {
 	return "\"", "\""
 }
 
@@ -64,80 +65,107 @@ func (db *dbOracle) parseSql(sql string) string {
 	//下面的正则表达式匹配出SELECT和INSERT的关键字后分别做不同的处理，如有LIMIT则将LIMIT的关键字也匹配出
 	patten := `^\s*(?i)(SELECT)|(INSERT)|(LIMIT\s*(\d+)\s*,\s*(\d+))`
 	if gregex.IsMatchString(patten, sql) == false {
-		fmt.Println("not matched..")
+		//fmt.Println("not matched..")
 		return sql
 	}
 
 	res, err := gregex.MatchAllString(patten, sql)
 	if err != nil {
-		fmt.Println("MatchString error.", err)
+		//fmt.Println("MatchString error.", err)
 		return ""
 	}
 
-	index := 0
+	index   := 0
 	keyword := strings.TrimSpace(res[index][0])
-	keyword = strings.ToUpper(keyword)
+	keyword  = strings.ToUpper(keyword)
 
 	index++
 	switch keyword {
-	case "SELECT":
-		//不含LIMIT关键字则不处理
-		if len(res) < 2 || (strings.HasPrefix(res[index][0], "LIMIT") == false && strings.HasPrefix(res[index][0], "limit") == false) {
-			break
-		}
-
-		//取limit前面的字符串
-		if gregex.IsMatchString("((?i)SELECT)(.+)((?i)LIMIT)", sql) == false {
-			break
-		}
-
-		queryExpr, _ := gregex.MatchString("((?i)SELECT)(.+)((?i)LIMIT)", sql)
-		if len(queryExpr) != 4 || strings.EqualFold(queryExpr[1], "SELECT") == false || strings.EqualFold(queryExpr[3], "LIMIT") == false{
-			break
-		}
-
-		//取limit后面的取值范围
-		first, limit := 0, 0
-		for i := 1; i < len(res[index]); i++ {
-			if len(strings.TrimSpace(res[index][i])) == 0 {
-				continue
-			}
-
-			if strings.HasPrefix(res[index][i], "LIMIT") || strings.HasPrefix(res[index][i], "limit") {
-				first, _ = strconv.Atoi(res[index][i+1])
-				limit, _ = strconv.Atoi(res[index][i+2])
+		case "SELECT":
+			//不含LIMIT关键字则不处理
+			if len(res) < 2 || (strings.HasPrefix(res[index][0], "LIMIT") == false && strings.HasPrefix(res[index][0], "limit") == false) {
 				break
 			}
-		}
 
-		//也可以使用between,据说这种写法的性能会比between好点,里层SQL中的ROWNUM_ >= limit可以缩小查询后的数据集规模
-		sql = fmt.Sprintf("SELECT * FROM (SELECT GFORM.*, ROWNUM ROWNUM_ FROM (%s %s) GFORM WHERE ROWNUM <= %d) WHERE ROWNUM_ >= %d", queryExpr[1], queryExpr[2], limit, first)
-	case "INSERT":
-		//获取VALUE的值，匹配所有带括号的值,会将INSERT INTO后的值匹配到，所以下面的判断语句会判断数组长度是否小于3
-		valueExpr, err := gregex.MatchAllString(`(\s*\(([^\(\)]*)\))`, sql)
-		if err != nil {
-			return sql
-		}
+			//取limit前面的字符串
+			if gregex.IsMatchString("((?i)SELECT)(.+)((?i)LIMIT)", sql) == false {
+				break
+			}
 
-		//判断VALUE后的值是否有多个，只有在批量插入的时候才需要做转换，如只有1个VALUE则不需要做转换
-		if len(valueExpr) < 3 {
-			break
-		}
+			queryExpr, _ := gregex.MatchString("((?i)SELECT)(.+)((?i)LIMIT)", sql)
+			if len(queryExpr) != 4 || strings.EqualFold(queryExpr[1], "SELECT") == false || strings.EqualFold(queryExpr[3], "LIMIT") == false {
+				break
+			}
 
-		//获取INTO后面的值
-		tableExpr, err := gregex.MatchString(`(?i)\s*(INTO\s+\w+\(([^\(\)]*)\))`, sql)
-		if err != nil {
-			return sql
-		}
-		tableExpr[0] = strings.TrimSpace(tableExpr[0])
+			//取limit后面的取值范围
+			first, limit := 0, 0
+			for i := 1; i < len(res[index]); i++ {
+				if len(strings.TrimSpace(res[index][i])) == 0 {
+					continue
+				}
 
-		sql = "INSERT ALL"
-		for i := 1; i < len(valueExpr); i++ {
-			sql += fmt.Sprintf(" %s VALUES%s", tableExpr[0], strings.TrimSpace(valueExpr[i][0]))
-		}
-		sql += " SELECT 1 FROM DUAL"
+				if strings.HasPrefix(res[index][i], "LIMIT") || strings.HasPrefix(res[index][i], "limit") {
+					first, _ = strconv.Atoi(res[index][i+1])
+					limit, _ = strconv.Atoi(res[index][i+2])
+					break
+				}
+			}
 
-	default:
+			//也可以使用between,据说这种写法的性能会比between好点,里层SQL中的ROWNUM_ >= limit可以缩小查询后的数据集规模
+			sql = fmt.Sprintf("SELECT * FROM (SELECT GFORM.*, ROWNUM ROWNUM_ FROM (%s %s) GFORM WHERE ROWNUM <= %d) WHERE ROWNUM_ >= %d", queryExpr[1], queryExpr[2], limit, first)
+		case "INSERT":
+			//获取VALUE的值，匹配所有带括号的值,会将INSERT INTO后的值匹配到，所以下面的判断语句会判断数组长度是否小于3
+			valueExpr, err := gregex.MatchAllString(`(\s*\(([^\(\)]*)\))`, sql)
+			if err != nil {
+				return sql
+			}
+
+			//判断VALUE后的值是否有多个，只有在批量插入的时候才需要做转换，如只有1个VALUE则不需要做转换
+			if len(valueExpr) < 3 {
+				break
+			}
+
+			//获取INTO后面的值
+			tableExpr, err := gregex.MatchString(`(?i)\s*(INTO\s+\w+\(([^\(\)]*)\))`, sql)
+			if err != nil {
+				return sql
+			}
+			tableExpr[0] = strings.TrimSpace(tableExpr[0])
+
+			sql = "INSERT ALL"
+			for i := 1; i < len(valueExpr); i++ {
+				sql += fmt.Sprintf(" %s VALUES%s", tableExpr[0], strings.TrimSpace(valueExpr[i][0]))
+			}
+			sql += " SELECT 1 FROM DUAL"
+
+		default:
 	}
 	return sql
+}
+
+// 获得指定表表的数据结构，构造成map哈希表返回，其中键名为表字段名称，键值暂无用途(默认为字段数据类型).
+func (db *dbOracle) getTableFields(table string) (fields map[string]string, err error) {
+	// 缓存不存在时会查询数据表结构，缓存后不过期，直至程序重启(重新部署)
+	v := db.cache.GetOrSetFunc("table_fields_"+table, func() interface{} {
+		result := (Result)(nil)
+		result, err = db.GetAll(fmt.Sprintf(`
+		SELECT COLUMN_NAME AS FIELD, CASE DATA_TYPE 
+		    WHEN 'NUMBER' THEN DATA_TYPE||'('||DATA_PRECISION||','||DATA_SCALE||')' 
+			WHEN 'FLOAT' THEN DATA_TYPE||'('||DATA_PRECISION||','||DATA_SCALE||')' 
+			ELSE DATA_TYPE||'('||DATA_LENGTH||')' END AS TYPE  
+		FROM USER_TAB_COLUMNS WHERE TABLE_NAME = '%s' ORDER BY COLUMN_ID`, strings.ToUpper(table)))
+		if err != nil {
+			return nil
+		}
+
+		fields = make(map[string]string)
+		for _, m := range result {
+			fields[strings.ToLower(m["FIELD"].String())] = strings.ToLower(m["TYPE"].String()) //ORACLE返回的值默认都是大写的，需要转为小写
+		}
+		return fields
+	}, 0)
+	if err == nil {
+		fields = v.(map[string]string)
+	}
+	return
 }

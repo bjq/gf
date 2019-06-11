@@ -1,16 +1,18 @@
-// Copyright 2018 gf Author(https://gitee.com/johng/gf). All Rights Reserved.
+// Copyright 2018 gf Author(https://github.com/gogf/gf). All Rights Reserved.
 //
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT was not distributed with this file,
-// You can obtain one at https://gitee.com/johng/gf.
+// You can obtain one at https://github.com/gogf/gf.
 
+// Package gflock implements a thread-safe sync.Locker interface for file locking.
+// 
 // 文件锁.
 package gflock
 
 import (
     "sync"
-    "gitee.com/johng/gf/third/github.com/theckman/go-flock"
-    "gitee.com/johng/gf/g/os/gfile"
+    "github.com/gogf/gf/third/github.com/theckman/go-flock"
+    "github.com/gogf/gf/g/os/gfile"
 )
 
 // 文件锁
